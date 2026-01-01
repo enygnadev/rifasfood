@@ -1,0 +1,214 @@
+"use client";
+import React, { useEffect, useState, useMemo } from "react";
+import { db } from "@/firebase/client";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { useCart } from "@/components/CartContext";
+
+interface Rifa {
+  id: string;
+  nome: string;
+  premio?: number;
+  vendidos?: number;
+  meta?: number;
+  valorPorNumero?: number;
+  valor?: number;
+  timerExpiresAt?: string;
+  status?: string;
+  categoria?: string;
+  desconto?: number;
+}
+
+const CATEGORIAS_DEFAULT = [
+  { id: "todas", label: "Todas", emoji: "🎯" },
+  { id: "eletronicos", label: "Eletrônicos", emoji: "📱" },
+  { id: "veiculos", label: "Veículos", emoji: "🚗" },
+  { id: "dinheiro", label: "Dinheiro", emoji: "💵" },
+  { id: "experiencias", label: "Experiências", emoji: "✈️" },
+  { id: "outros", label: "Outros", emoji: "🎁" },
+];
+
+export default function AllRifasGrid() {
+  const [rifas, setRifas] = useState<Rifa[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState("todas");
+  const cart = useCart();
+
+  useEffect(() => {
+    if (!db) return;
+    const q = query(collection(db, "rifas"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setRifas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Rifa)));
+        setLoading(false);
+      },
+      (err) => {
+        console.error("rifas:onSnapshot", err);
+        setLoading(false);
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  const categories = useMemo(() => {
+    const uniqueCats = new Set(rifas.map((r) => r.categoria || "outros"));
+    return CATEGORIAS_DEFAULT.filter(
+      (c) => c.id === "todas" || uniqueCats.has(c.id)
+    );
+  }, [rifas]);
+
+  const filteredRifas = useMemo(() => {
+    if (activeFilter === "todas") return rifas;
+    return rifas.filter((r) => (r.categoria || "outros") === activeFilter);
+  }, [rifas, activeFilter]);
+
+  if (loading) {
+    return (
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-2xl">🎰</span>
+          <h2 className="text-xl font-bold text-gray-800">Todas as Rifas</h2>
+        </div>
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="bg-gray-200 rounded-full h-10 w-24 animate-pulse flex-shrink-0" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-gray-200 rounded-xl h-52 animate-pulse" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-2xl">🎰</span>
+        <h2 className="text-xl font-bold text-gray-800">Todas as Rifas</h2>
+        <span className="ml-2 text-sm text-gray-500">
+          ({filteredRifas.length} disponíveis)
+        </span>
+      </div>
+
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveFilter(cat.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
+              activeFilter === cat.id
+                ? "bg-green-600 text-white shadow-md"
+                : "bg-white text-gray-700 border border-gray-200 hover:border-green-400 hover:bg-green-50"
+            }`}
+          >
+            <span>{cat.emoji}</span>
+            <span>{cat.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {filteredRifas.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-xl">
+          <span className="text-4xl mb-4 block">🔍</span>
+          <p className="text-gray-500">Nenhuma rifa encontrada nesta categoria</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredRifas.map((rifa) => {
+            const progresso = Math.round(((rifa.vendidos || 0) / (rifa.meta || 1)) * 100);
+            const quaseAcabando = progresso >= 80;
+            const desconto = rifa.desconto || (progresso >= 90 ? 10 : 0);
+            const precoOriginal = rifa.valorPorNumero || rifa.valor || 10;
+            const precoComDesconto = desconto
+              ? precoOriginal * (1 - desconto / 100)
+              : precoOriginal;
+            const tempoRestante = rifa.timerExpiresAt
+              ? `${Math.max(0, Math.floor((new Date(rifa.timerExpiresAt).getTime() - Date.now()) / 60000))} min`
+              : "--";
+
+            const handleAdd = (e: React.MouseEvent) => {
+              e.preventDefault();
+              cart.addItem({
+                rifaId: rifa.id,
+                nome: rifa.nome,
+                quantidade: 1,
+                valorPorNumero: precoOriginal,
+              });
+            };
+
+            return (
+              <div
+                key={rifa.id}
+                className="group bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:-translate-y-1"
+              >
+                <div className="p-4 flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-gray-800 group-hover:text-green-600 transition truncate flex-1">
+                      ⭐ {rifa.nome}
+                    </h3>
+                    {desconto > 0 && (
+                      <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full animate-bounce">
+                        -{desconto}%
+                      </span>
+                    )}
+                  </div>
+
+                  {quaseAcabando && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full w-fit mb-2 animate-pulse">
+                      🔥 Quase acabando!
+                    </span>
+                  )}
+
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                    <span>💰 Prêmio:</span>
+                    <span className="font-semibold text-green-700">
+                      R$ {rifa.premio || 100}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                    <span>🛒 {rifa.vendidos || 0}/{rifa.meta || 0}</span>
+                    <span className="ml-auto">⏱️ {tempoRestante}</span>
+                  </div>
+
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        quaseAcabando
+                          ? "bg-gradient-to-r from-red-400 to-red-600"
+                          : "bg-gradient-to-r from-green-400 to-green-600"
+                      }`}
+                      style={{ width: `${progresso}%` }}
+                    />
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-between">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg font-bold text-green-700">
+                        R$ {precoComDesconto.toFixed(2)}
+                      </span>
+                      {desconto > 0 && (
+                        <span className="text-sm line-through text-gray-400">
+                          R$ {precoOriginal.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleAdd}
+                      className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow transition-all flex items-center gap-1"
+                    >
+                      <span>🛒</span> Adicionar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}

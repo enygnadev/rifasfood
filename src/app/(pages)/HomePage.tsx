@@ -7,11 +7,13 @@ import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "@/firebase/client";
 import HomeRifasEncerrando from "./home/HomeRifasEncerrando";
 import dynamic from 'next/dynamic';
+import { useCart } from "@/components/CartContext";
 const Hero = dynamic(() => import('@/components/Hero'), { ssr: false });
 const HowItWorks = dynamic(() => import('@/components/HowItWorks'), { ssr: false });
 
 export default function HomePage() {
   const [rifas, setRifas] = useState<any[]>([]);
+  const cart = useCart();
 
   useEffect(() => {
     const q = query(collection(db, "rifas"), orderBy("createdAt", "desc"));
@@ -67,8 +69,6 @@ export default function HomePage() {
           // Tempo restante fake para simulação
           const tempoRestante = rifa.tempoRestante || (rifa.timerExpiresAt ? `${Math.max(0, Math.floor((new Date(rifa.timerExpiresAt).getTime() - Date.now())/60000))} min` : '--');
           // Adicionar ao carrinho
-          const { useCart } = require('@/components/CartContext');
-          const cart = useCart();
           function addToCart(e: React.MouseEvent) {
             e.preventDefault();
             cart.addItem({ rifaId: rifa.id, nome: rifa.nome, quantidade: 1, valorPorNumero: precoOriginal });

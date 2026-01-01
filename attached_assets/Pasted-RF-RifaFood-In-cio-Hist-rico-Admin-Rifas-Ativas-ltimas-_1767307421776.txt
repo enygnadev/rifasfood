@@ -1,0 +1,82 @@
+RF
+RifaFood
+Início
+Histórico
+Admin
+Rifas Ativas
+Últimas rifas — números limitados, prêmio real
+
+Garanta sua participação nas rifas que vão encerrar em minutos. Jury of winners and social proof inside.
+Como funciona
+
+    Escolha a Rifa — veja rifas em destaque e as que estão para encerrar.
+    Compre números — sistema dá mais números quanto mais perto da meta.
+    Meta atingida — compras travadas, contagem regressiva de 10 minutos começa.
+    Sorteio automático — resultado transparente e anúncio imediato.
+    Nova rodada — rifa reiniciada automaticamente para manter o ritmo.
+
+Dica: procure rifas com badge Últimos momentos para oportunidades rápidas.
+Encerrando
+⭐ E2E Rifa Test
+💰 Prêmio: R$ 100🛒 1/5
+Tempo: --20% vendido
+R$ 10.00
+⭐ E2E Sorteio Test-10%
+💰 Prêmio: R$ 100🛒 1/1
+Tempo: 0 min100% vendido
+R$ 9.00R$ 10.00
+⭐ E2E Rifa Test
+💰 Prêmio: R$ 100🛒 1/5
+Tempo: --20% vendido
+R$ 10.00
+⭐ E2E Sorteio Test-10%
+💰 Prêmio: R$ 100🛒 1/1
+Tempo: 0 min100% vendido
+R$ 9.00R$ 10.00
+⭐ E2E Rifa Test
+💰 Prêmio: R$ 100🛒 1/5
+Tempo: --20% vendido
+R$ 10.00
+⭐ E2E Rifa Test
+💰 Prêmio: R$ 100🛒 1/5
+Tempo: --20% vendido
+R$ 10.00
+⭐ E2E Rifa Test
+💰 Prêmio: R$ 100🛒 0/5
+Tempo: --0% vendido
+R$ 10.00
+1/1
+Next.js 15.5.9 (outdated)Webpack
+Console Error
+
+React has detected a change in the order of Hooks called by HomePage. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+1. useState                   useState
+2. useEffect                  useEffect
+3. undefined                  useContext
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/components/CartContext.tsx (23:23) @ useCart
+
+  21 |
+  22 | export function useCart() {
+> 23 |   const c = useContext(CartContext);
+     |                       ^
+  24 |   if (!c) throw new Error("useCart must be used within CartProvider");
+  25 |   return c;
+  26 | }
+
+Call Stack 22
+Show 19 ignore-listed frame(s)
+useCart
+src/components/CartContext.tsx (23:23)
+HomePage/<.children<.children<
+src/app/(pages)/HomePage.tsx (71:24)
+HomePage
+src/app/(pages)/HomePage.tsx (55:16)
+1
+2
+
+Was this helpful?

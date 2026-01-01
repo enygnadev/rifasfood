@@ -1,25 +1,43 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCart } from "./CartContext";
 import { useAuth } from "./AuthProvider";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/client";
+import { db } from "@/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 
 export function FloatingHeader() {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const cart = useCart();
   const { user, loading } = useAuth();
 
   const total = cart.getTotal();
+  const isLoggedIn = user && !user.isAnonymous;
+
+  useEffect(() => {
+    async function checkAdmin() {
+      if (!isLoggedIn || !user) {
+        setIsAdmin(false);
+        return;
+      }
+      try {
+        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+        setIsAdmin(userDoc.exists() && userDoc.data().role === "admin");
+      } catch {
+        setIsAdmin(false);
+      }
+    }
+    checkAdmin();
+  }, [user, isLoggedIn]);
 
   async function handleLogout() {
     await signOut(auth);
     setMenuOpen(false);
   }
-
-  const isLoggedIn = user && !user.isAnonymous;
 
   return (
     <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[min(1024px,calc(100%-32px))] header-glass rounded-full px-4 py-2 flex items-center justify-between transition-shadow duration-200">
@@ -32,7 +50,7 @@ export function FloatingHeader() {
           <Link href="/" className="hover:underline">Início</Link>
           <Link href="/historico" className="hover:underline">Histórico</Link>
           {isLoggedIn && <Link href="/painel" className="hover:underline">Meu Painel</Link>}
-          <Link href="/admin" className="hover:underline">Admin</Link>
+          {isAdmin && <Link href="/admin" className="hover:underline">Admin</Link>}
         </nav>
       </div>
 
@@ -102,7 +120,7 @@ export function FloatingHeader() {
             {isLoggedIn && (
               <Link href="/painel" className="py-2 text-gray-700" onClick={() => setMenuOpen(false)}>Meu Painel</Link>
             )}
-            <Link href="/admin" className="py-2 text-gray-700" onClick={() => setMenuOpen(false)}>Admin</Link>
+            {isAdmin && <Link href="/admin" className="py-2 text-gray-700" onClick={() => setMenuOpen(false)}>Admin</Link>}
             <div className="border-t pt-2 mt-2">
               {isLoggedIn ? (
                 <button onClick={handleLogout} className="py-2 text-red-600 w-full text-left">Sair</button>

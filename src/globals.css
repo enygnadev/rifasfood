@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+html, body, #__next {
+  height: 100%;
+}
+
+body {
+  background-color: rgb(249 250 251);
+  color: rgb(17 24 39);
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 320ms ease-out both; }
+
+/* Button CTA hover pulse */
+@keyframes pulse-cta { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+.cta-animated:hover { animation: pulse-cta 420ms ease-in-out both; }
+
+/* Card lift */
+@keyframes lift { from { transform: translateY(0); box-shadow: 0 2px 6px rgba(0,0,0,0.06);} to { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(0,0,0,0.12);} }
+.card-hover:hover { animation: lift 180ms ease-out both; }
+
+/* Badge pulse and urgent shake */
+@keyframes badge-pulse { 0% { transform: scale(1); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+.badge-pulse { animation: badge-pulse 900ms ease-in-out infinite; }
+
+@keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-4px);} 50% { transform: translateX(4px);} 75%{ transform: translateX(-2px);} 100%{ transform: translateX(0);} }
+.shake { animation: shake 700ms ease-in-out both; }
+
+/* Shimmer for loading */
+.shimmer { background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { from { background-position: -100% 0; } to { background-position: 100% 0; } }
+
+/* Progress transition */
+.progress-bar { transition: width 600ms cubic-bezier(.22,.98,.35,1); }
+
+/* subtle glass header */
+.header-glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(8px); }

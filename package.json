@@ -1,0 +1,37 @@
+{
+  "name": "rifafood",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 5000",
+    "build": "next build",
+    "start": "next start",
+    "emulate": "firebase emulators:start --only firestore,functions",
+    "deploy:functions": "cd functions && npm run deploy",
+    "deploy:all": "npm run build && firebase deploy --only hosting,functions",
+    "test:flow": "node scripts/integrationFlow.js",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --reporter=github",
+    "deploy:indexes": "firebase deploy --only firestore:indexes"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "autoprefixer": "^10.4.23",
+    "firebase": "^12.7.0",
+    "firebase-admin": "^13.6.0",
+    "ioredis": "^5.8.2",
+    "next": "^15.5.9",
+    "postcss": "^8.5.6",
+    "stripe": "^20.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.1",
+    "firebase-tools": "^15.1.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5"
+  }
+}

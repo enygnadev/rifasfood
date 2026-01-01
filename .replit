@@ -1,0 +1,43 @@
+modules = ["nodejs-20"]
+[nix]
+channel = "stable-25_05"
+packages = ["unzip"]
+
+[agent]
+expertMode = true
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Next.js Dev"
+
+[[workflows.workflow]]
+name = "Next.js Dev"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"

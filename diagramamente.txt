@@ -1,0 +1,250 @@
+DIAGRAMA MENTAL — SISTEMA DE RIFAS ESTILO IFOOD (PROMPT PROGEROSO)
+
+=== PROMPT ORIGINAL (COPIADO) ===
+
+Você é um arquiteto de sistemas de rifas digitais de alta conversão, especialista em gamificação, urgência psicológica, UX estilo iFood e monetização agressiva porém ética.
+
+Crie um SISTEMA COMPLETO DE RIFAS AUTÔNOMO, onde o único produto é a rifa, mas toda a experiência SIMULA UM APP DE DELIVERY (estilo iFood).
+
+⚠️ Importante:
+
+NÃO é delivery tradicional
+
+NÃO é ecommerce comum
+
+É RIFA DIGITAL, mas com aparência, linguagem e fluxo de pedido rápido de comida
+
+O sistema deve ser robusto, escalável, automático e altamente lucrativo.
+
+1️⃣ VISÃO GERAL DO SISTEMA ... (prompt completo mantido)
+
+(Use este arquivo como referência de produto/arquitetura para desenvolvedores, designers e stakeholders.)
+
+---
+
+1) DIAGRAMA MENTAL (ASCII / resumo visual)
+
+[Usuário Mobile / Web]
+    |
+    v
+[Home (cards estilo iFood)] -> [Página Rifa (barra progresso, CTA)] -> [Comprar (POST /api/comprar)]
+    |                                           |                                |
+    |                                           v                                v
+    |-------------------------------------> [Progresso atualizado (Firestore)]
+                                            |          |
+                                            v          v
+                                  [Se meta atingida]  [Notificações UX]
+                                            |                  |
+                                            v                  v
+                                 [Travamento de compras]    [Prova social]
+                                            |
+                                            v
+                                [Criar registro de contagem]
+                                            |
+                                            v
+                        [Contagem regressiva 10m (Firestore timestamp)]
+                                            |
+                                            v
+                            (Trigger) Cloud Function / Worker
+                                            |
+                                            v
+                                [Sorteio automático (Function)]
+                                            |
+                                            v
+                            [Registrar vencedor, Notificar, Salvar histórico]
+                                            |
+                                            v
+                                   [Reset / Nova rifa automática]
+
+Notas: todo estado crítico (vendidos, meta, locked, timerExpiresAt, vencedor) é persistido em Firestore para visibilidade e auditoria realtime.
+
+---
+
+2) REGRAS DE NEGÓCIO / DB SCHEMA SUGERIDO (Firestore)
+
+Collection: rifas
+- id: string
+- nome: string
+- descricao: string
+- meta: number (números totais)
+- vendidos: number
+- valorPorNumero: number (ex: 10)
+- status: enum (ativa, contagem, sorteando, encerrada)
+- locked: boolean
+- timerExpiresAt: timestamp | null
+- createdAt, updatedAt
+- premio: { descricao, custo }
+- vencedores: { userId, nome, numero, timestamp }[] (após sorteio)
+
+Collection: compras
+- id
+- rifaId
+- userId
+- numeros: number[]
+- quantidade: number
+- valorPago: number
+- pagamentoStatus (paid, pending, failed)
+- createdAt
+
+Collection: usuarios
+- id, nome, telefone, email, walletBalance, metadata
+
+Collection: historico (ou rifas.encerradas)
+- referência da rifa, vencedor, captura de prova (foto), relatório de auditoria
+
+Collection: logs_audit
+- evento, payload, timestamp (para transparência e auditoria)
+
+- [X] Audit logs to `logs_audit` for purchases, webhooks, and sorteios (implemented)
+- [ ] Optional: Replace in-memory rate limiter with Redis (implemented Redis client and scaffold; still using in-memory fallback)
+
+---
+
+3) LÓGICA DA RIFA (RESUMO TÉCNICO)
+- Preço base: R$10 = 1 número
+- Números por compra variam pelo progresso:
+  * 0-20% => 1 número
+  * 21-50% => 2 números
+  * 51-80% => 4 números
+  * 81-99% => 8 números
+- Quando vendidos >= meta:
+  * set locked = true
+  * set timerExpiresAt = now + 10min (save timestamp)
+  * status = 'contagem'
+  * bloquear novas compras e mostrar contagem regressiva para todos via Firestore
+- Quando timestamp expirou (Cloud Function ou scheduler):
+  * perform draw (seed gravada: rifaId + timerExpiresAt + timestamp)
+  * escolher número vencedor com RNG auditable
+  * registrar vencedor, salvar prova, status = 'encerrada'
+  * criar entrada em histórico
+  * opcional: criar nova rifa (automática)
+
+Justificativa psicológica: escassez, aumento de número late-stage incentiva FOMO.
+
+---
+
+4) REGRAS DE SEGURANÇA E AUDITORIA
+- Todas operações financeiras precisam ser atômicas e registrados.
+- Sorteio deve ser auditável: registrar seed, timestamp, e lista de números antes do sorteio.
+- Considerar integração com Chainlink VRF ou similar para máxima confiança (opcional).
+
+---
+
+5) INFRA E AUTOMAÇÃO (RECOMENDAÇÃO)
+- Frontend: Next.js (App Router), Tailwind CSS
+- Backend / Realtime: Firebase Firestore (dados), Firebase Auth (usuários), Firebase Functions (automação do sorteio), Cloud Scheduler (fallback)
+- Pagamentos: Stripe (cobrança de números), Webhooks para confirmar pagamentos
+- Deploy: Vercel (Next.js) + Firebase Hosting / Functions ou Google Cloud Functions
+- Observabilidade: logs + erro reports + auditoria
+
+---
+
+6) CHECKLIST DE IMPLEMENTAÇÃO (X certo = concluído)
+
+[ X ] Scaffold Next.js + Tailwind + TypeScript (feito)
+[ X ] Estrutura de páginas CRUD: Home, Rifa, Contagem, Sorteio, Histórico, Admin (feito)
+[ X ] Componentes de UI básicos: CardRifa, BarraProgresso, Timer (feito)
+[ X ] Lógica estática de números dinâmicos em /src/utils/rifa.ts (feito)
+[ X ] Arquivo de configuração Firebase placeholder em /src/firebase/config.ts (feito)
+[ X ] README.md e copilot-instructions.md (feito)
+
+Tarefas a implementar (prioridade alta):
+[ ] Modelagem Firestore (coleções/índices)
+[X] API endpoint de compra: /src/app/api/comprar/route.ts (recebe compra, processa pagamento, aumenta ‘vendidos’) (implementado esqueleto)
+[X] Webhook de pagamento (Stripe) e integração com compras (/src/app/api/webhook/stripe/route.ts) (implementado esqueleto)
+[X] Função de trigger: ao detectar vendidos >= meta -> lock & set timerExpiresAt (implementado dentro do webhook como transação)
+[X] Cloud Function / scheduled worker para executar sorteio quando timer expirar (checkAndRunSorteios agendado a cada minuto) (implementado em /functions)
+[X] Registrar resultado + salvar prova + notificar participantes (sorteio e historico implementado em /api/admin/run-sorteio)
+[X] Realtime: listeners para atualizar UI (Home e Rifa implementados com onSnapshot)
+[X] Proteção e autenticação: Firebase Auth + regras de segurança Firestore (basic rules added to firestore.rules)
+[ ] Tests (unit / e2e) e scripts de deploy- [X] Admin: listar rifas + ação Forçar Sorteio (endpoints + UI implemented)
+- [X] Harden admin and purchase endpoints with rate limiting and input validation (rate limiter + basic validation added)- [X] Salvar FCM tokens no documento do usuário quando o cliente concede permissão (implementado em cliente via requestPermissionAndRegisterToken; service worker criado)
+- [X] Adicionar UI para gerenciar notificações (on/off) (implementado em `NotificationSettings` e integrado à Home)
+
+---
+
+7) O QUE JÁ TEM NO PROJETO (nomes de arquivos / breve descrição)
+- /src/app/(pages)/HomePage.tsx — Home (lista de rifas mock, cards)
+- /src/components/CardRifa.tsx — Card UI para rifa
+- /src/components/BarraProgresso.tsx — Barra de progresso
+- /src/components/Timer.tsx — Formatação de timer (apresentação)
+- /src/app/(pages)/rifa/RifaPage.tsx — Página da rifa (SSR/static mock)
+- /src/app/(pages)/contagem/ContagemPage.tsx — Página contagem (static mock)
+- /src/app/(pages)/sorteio/SorteioPage.tsx — Página de sorteio (mock)
+- /src/app/(pages)/historico/HistoricoPage.tsx — Histórico (mock)
+- /src/app/(pages)/admin/AdminPage.tsx — Painel Admin (formulário baseado em POST)
+- /src/utils/rifa.ts — lógica de números dinâmicos e cálculo de progresso
+- /src/firebase/config.ts — placeholder para credenciais Firebase
+- /README.md — instruções iniciais e como rodar
+
+---
+
+8) ARQUIVOS E ROTAS SUGERIDAS A CRIAR (implementação prática)
+- /src/app/api/comprar/route.ts (POST)
+  * Valida sessão/usuário, calcula quantidade de números com base no progresso, cria compra (compras collection), dispara pagamento (Stripe), retorna session URL / checkout
+
+- /src/app/api/webhook/stripe/route.ts (POST)
+  * Recebe confirmação, marca compra como `paid`, incrementa `rifas.vendidos`, registra números comprados, escreve log
+
+- /src/firebase/functions/onRifaUpdate.ts
+  * Trigger Firestore onUpdate: se vendidos >= meta e !locked -> set locked=true, timerExpiresAt = now + 10m
+
+- /src/firebase/functions/runSorteio.ts
+  * Trigger via scheduler or on write when timerExpiresAt <= now -> select winner, write vencedor, set status, notifica usuários (FCM / e-mail)
+
+- /src/app/admin/api/criar-rifa/route.ts (POST)
+  * Rota administrativa protegida para criar a rifa com meta, valor, data
+
+- /src/lib/rnd.ts
+  * Função que realiza sorteio rastreável (seed = timestamp + docId hash)
+
+- Testes: /tests/** (unit + integration)
+- [X] Configurar SendGrid para notificar por e-mail (implementado em Functions - enviar email ao vencedor)
+
+---
+
+9) FLUXOS (resumo com steps técnicos)
+
+Fluxo de compra (simplificado)
+1. Usuário clica “Comprar agora” → POST /api/comprar (ou redirect Stripe Checkout)
+2. Webhook Stripe confirma pagamento → /api/webhook/stripe
+3. Ao pagamento confirmado: criar registro em purchases, aumentar rifas.vendidos atomically
+4. Se vendidos >= meta: set locked + timerExpiresAt
+5. Timer expira → Cloud Function executa sorteio → registra vencedor
+6. Notificação e histórico atualizados
+
+---
+
+10) REGRAS E CONSIDERAÇÕES LEGAIS
+- Verificar legislação local sobre rifas / promoções para assegurar conformidade (licenças, termos, transparência de regras)
+- Exibir termos da rifa, custo do prêmio, probabilidade estimada
+- Registrar logs para auditoria
+
+---
+
+11) PRIORIDADE IMEDIATA (próximos 3 passos que eu posso implementar agora)
+1) Criar rota /src/app/api/comprar/route.ts (esqueleto) e modelo Purchases (Firestore) (feito)
+2) Implementar Firestore trigger em /src/firebase/functions/onRifaUpdate.ts (escrever locked + timerExpiresAt) (feito)
+3) Implementar Cloud Function /scheduler runSorteio e rota webhook Stripe skeleton (feito)
+
+Extras para desenvolvimento local:
+- Adicionado endpoint dev-only: POST /api/debug/simulate-webhook { purchaseId } para simular confirmação de pagamento (apenas fora de produção)
+- Adicionado script `npm run test:flow` para criar rifa, comprar e simular webhook localmente usando as APIs do projeto.
+
+Use `npm run emulate` and `npm run dev` em terminais separados, então `npm run test:flow` para executar o fluxo de teste local.
+
+
+---
+
+12) CHECKLIST FINAL (como usar este arquivo)
+- Marcar X nos itens concluídos
+- A cada feature implementada, atualizar a seção "O QUE JÁ TEM NO PROJETO"
+- Comentar nesta thread qual item quer que eu entregue em seguida (ex: "implemente a rota de compra")
+
+---
+
+Gerado por: GitHub Copilot (Raptor mini (Preview)) — arquivo "diagramamente.txt"
+Data: 30/12/2025
+
+
+(EOF)

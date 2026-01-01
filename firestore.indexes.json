@@ -1,0 +1,12 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "rifas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "timerExpiresAt", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}

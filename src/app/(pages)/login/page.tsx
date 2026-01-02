@@ -1,5 +1,5 @@
 "use client";
-import LoginPage from "./LoginPage";
+import LoginPageClient from "./LoginPageClient";
 export default function Page() {
-  return <LoginPage />;
+  return <LoginPageClient />;
 }

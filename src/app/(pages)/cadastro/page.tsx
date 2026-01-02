@@ -1,5 +1,5 @@
 "use client";
-import CadastroPage from "./CadastroPage";
+import CadastroPageClient from "./CadastroPageClient";
 export default function Page() {
-  return <CadastroPage />;
+  return <CadastroPageClient />;
 }

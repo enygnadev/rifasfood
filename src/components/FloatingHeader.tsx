@@ -13,6 +13,7 @@ export function FloatingHeader() {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoadingCheckout, setIsLoadingCheckout] = useState(false);
   const cart = useCart();
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -272,12 +273,14 @@ export function FloatingHeader() {
                 </div>
 
                 <button
-                  className="w-full bg-green-600 text-white font-bold py-3 md:py-3.5 rounded-lg hover:bg-green-700 active:bg-green-800 transition-all text-sm md:text-base touch-highlight-transparent hover:shadow-lg"
+                  className="w-full bg-green-600 text-white font-bold py-3 md:py-3.5 rounded-lg hover:bg-green-700 active:bg-green-800 transition-all text-sm md:text-base touch-highlight-transparent hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => {
                     if (cart.items.length === 0) {
                       alert('Carrinho vazio');
                       return;
                     }
+                    if (isLoadingCheckout) return; // Previne múltiplos cliques
+                    setIsLoadingCheckout(true);
                     setOpen(false); // Fecha a janela flutuante
                     // Se não está logado, vai para login (com redirect para checkout)
                     if (!isLoggedIn) {
@@ -286,8 +289,9 @@ export function FloatingHeader() {
                       router.push('/checkout');
                     }
                   }}
+                  disabled={isLoadingCheckout || cart.items.length === 0}
                 >
-                  Finalizar Compra
+                  {isLoadingCheckout ? 'Redirecionando...' : 'Finalizar Compra'}
                 </button>
 
                 <button

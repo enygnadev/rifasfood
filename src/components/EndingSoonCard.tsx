@@ -9,6 +9,7 @@ import { useAuth } from "./AuthProvider";
 
 export function EndingSoonCard({ rifa }: { rifa: any }) {
   const [now, setNow] = useState(new Date());
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const cart = useCart();
   const router = useRouter();
   const { user } = useAuth();
@@ -65,6 +66,7 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
   const maxExtras = valorDobrado ? 20 : disponivel;
 
   function addToCart() {
+    if (isAddingToCart) return; // Previne múltiplos cliques
     if (travado) {
       alert('⏰ Compras travadas! Faltam menos de 2 minutos para o sorteio.');
       return;
@@ -84,12 +86,16 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
       alert(`Você já tem ${noCarrinho} no carrinho. Só restam ${disponivel} números disponíveis.`);
       return;
     }
+    
+    setIsAddingToCart(true);
     cart.addItem({ 
       rifaId: rifa.id, 
       nome: rifa.nome + (valorDobrado ? ' (DOBRADO)' : ''), 
       quantidade: 1, 
       valorPorNumero: precoFinal 
     });
+    // Reset após 300ms para permitir novo clique
+    setTimeout(() => setIsAddingToCart(false), 300);
   }
 
   function handleEntrar() {
@@ -143,18 +149,18 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
       <div className="mt-3 flex gap-2">
         <button className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-2 rounded cta-animated" onClick={() => window.location.href = `/rifa?rifa=${rifa.id}`} aria-label={`Ver ${rifa.nome}`}>Ver</button>
         <button 
-          className={`px-3 py-2 rounded text-sm font-semibold ${
-            travado || esgotado 
+          className={`px-3 py-2 rounded text-sm font-semibold transition-all ${
+            travado || esgotado || isAddingToCart
               ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
               : valorDobrado 
                 ? 'bg-yellow-500 text-black hover:bg-yellow-600' 
                 : 'bg-white border hover:bg-gray-50'
           }`}
           onClick={addToCart} 
-          disabled={travado || esgotado}
+          disabled={travado || esgotado || isAddingToCart}
           aria-label={`Adicionar ${rifa.nome} ao carrinho`}
         >
-          {travado ? '🔒 Travado' : esgotado ? 'Esgotado' : valorDobrado ? '+ 2X' : '+ Carrinho'}
+          {travado ? '🔒 Travado' : esgotado ? 'Esgotado' : isAddingToCart ? '⏳' : valorDobrado ? '+ 2X' : '+ Carrinho'}
         </button>
         <button 
           className={`px-3 py-2 rounded text-sm font-semibold ${

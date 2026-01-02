@@ -626,11 +626,42 @@ function UsuariosTab() {
 function VendasTab() {
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usuarios, setUsuarios] = useState<Record<string, any>>({});
+  const [rifas, setRifas] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const q = query(collection(db, "compras"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      setVendas(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    const unsub = onSnapshot(q, async (snap) => {
+      const vendasData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setVendas(vendasData);
+
+      const userIds = [...new Set(vendasData.map((v) => v.userId).filter(Boolean))];
+      const rifaIds = [...new Set(vendasData.map((v) => v.rifaId).filter(Boolean))];
+
+      const usuariosData: Record<string, any> = {};
+      const rifasData: Record<string, any> = {};
+
+      await Promise.all([
+        ...userIds.map(async (userId) => {
+          try {
+            const userDoc = await getDoc(doc(db, "usuarios", userId));
+            if (userDoc.exists()) {
+              usuariosData[userId] = userDoc.data();
+            }
+          } catch (err) {}
+        }),
+        ...rifaIds.map(async (rifaId) => {
+          try {
+            const rifaDoc = await getDoc(doc(db, "rifas", rifaId));
+            if (rifaDoc.exists()) {
+              rifasData[rifaId] = rifaDoc.data();
+            }
+          } catch (err) {}
+        }),
+      ]);
+
+      setUsuarios(usuariosData);
+      setRifas(rifasData);
       setLoading(false);
     });
     return () => unsub();
@@ -675,29 +706,38 @@ function VendasTab() {
               </tr>
             </thead>
             <tbody>
-              {vendas.map((v) => (
-                <tr key={v.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-mono text-gray-500">{v.id.slice(0, 8)}...</td>
-                  <td className="px-4 py-3">{v.rifaNome || v.rifaId?.slice(0, 8) || "-"}</td>
-                  <td className="px-4 py-3">{v.userId?.slice(0, 8) || "-"}</td>
-                  <td className="px-4 py-3">{v.quantidade || 1}</td>
-                  <td className="px-4 py-3">R$ {(v.valor || 0).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      v.status === "confirmado"
-                        ? "bg-green-100 text-green-700"
-                        : v.status === "pendente"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}>
-                      {v.status || "pendente"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {v.createdAt?.toDate?.()?.toLocaleDateString?.() || "-"}
-                  </td>
-                </tr>
-              ))}
+              {vendas.map((v) => {
+                const usuario = usuarios[v.userId];
+                const rifa = rifas[v.rifaId];
+                return (
+                  <tr key={v.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-mono text-gray-500">{v.id.slice(0, 8)}...</td>
+                    <td className="px-4 py-3">{v.rifaNome || rifa?.nome || v.rifaId?.slice(0, 8) || "-"}</td>
+                    <td className="px-4 py-3">
+                      <div>
+                        <div className="font-medium">{usuario?.nome || "-"}</div>
+                        <div className="text-xs text-gray-500">{usuario?.email || v.userId?.slice(0, 8) || "-"}</div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">{v.quantidade || 1}</td>
+                    <td className="px-4 py-3">R$ {(v.valor || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        v.status === "confirmado"
+                          ? "bg-green-100 text-green-700"
+                          : v.status === "pendente"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}>
+                        {v.status || "pendente"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {v.createdAt?.toDate?.()?.toLocaleDateString?.("pt-BR") || "-"}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

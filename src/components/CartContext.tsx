@@ -52,8 +52,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const now = Date.now();
     const lastTime = lastAddTimeRef.current[item.rifaId] || 0;
     
-    // Previne adicionar o mesmo item em menos de 500ms
-    if (now - lastTime < 500) {
+    // Previne adicionar o mesmo item em menos de 1500ms
+    if (now - lastTime < 1500) {
       console.log(`[DEBUG CartContext] Rejeitado - último clique foi há ${now - lastTime}ms`);
       return;
     }

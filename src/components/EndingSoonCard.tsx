@@ -95,8 +95,8 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
       quantidade: 1, 
       valorPorNumero: precoFinal 
     });
-    // Reset após 300ms para permitir novo clique
-    setTimeout(() => setIsAddingToCart(false), 300);
+    // Reset após 1000ms para permitir novo clique
+    setTimeout(() => setIsAddingToCart(false), 1000);
   }
 
   function handleEntrar() {

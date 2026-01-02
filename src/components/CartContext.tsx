@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 type CartItem = {
   rifaId: string;
@@ -21,6 +21,9 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+// Variável GLOBAL fora do React para garantir persistência
+const globalLastAddTime: { [key: string]: number } = {};
+
 export function useCart() {
   const c = useContext(CartContext);
   if (!c) throw new Error("useCart must be used within CartProvider");
@@ -29,7 +32,6 @@ export function useCart() {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
-  const lastAddTimeRef = useRef<{ [key: string]: number }>({});
 
   useEffect(() => {
     try {
@@ -50,15 +52,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   function addItem(item: CartItem) {
     const now = Date.now();
-    const lastTime = lastAddTimeRef.current[item.rifaId] || 0;
+    const lastTime = globalLastAddTime[item.rifaId] || 0;
     
-    // Previne adicionar o mesmo item em menos de 1500ms
+    // Previne adicionar o mesmo item em menos de 1500ms usando variável GLOBAL
     if (now - lastTime < 1500) {
       console.log(`[DEBUG CartContext] Rejeitado - último clique foi há ${now - lastTime}ms`);
       return;
     }
     
-    lastAddTimeRef.current[item.rifaId] = now;
+    globalLastAddTime[item.rifaId] = now;
     console.log(`[DEBUG CartContext] addItem called with quantidade=${item.quantidade}`, item);
     
     setItems((prev) => {

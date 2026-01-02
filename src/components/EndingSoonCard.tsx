@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/firebase/client";
@@ -10,6 +10,7 @@ import { useAuth } from "./AuthProvider";
 export function EndingSoonCard({ rifa }: { rifa: any }) {
   const [now, setNow] = useState(new Date());
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const isAddingRef = useRef(false);
   const cart = useCart();
   const router = useRouter();
   const { user } = useAuth();
@@ -66,7 +67,11 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
   const maxExtras = valorDobrado ? 20 : disponivel;
 
   function addToCart() {
-    if (isAddingToCart) return; // Previne múltiplos cliques
+    // Proteção dupla: ref + state
+    if (isAddingRef.current || isAddingToCart) {
+      console.log(`[DEBUG] Clique bloqueado - isAddingRef=${isAddingRef.current}, isAddingToCart=${isAddingToCart}`);
+      return;
+    }
     if (travado) {
       alert('⏰ Compras travadas! Faltam menos de 2 minutos para o sorteio.');
       return;
@@ -87,7 +92,10 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
       return;
     }
     
+    // Marcar como adicionando ANTES de qualquer operação
+    isAddingRef.current = true;
     setIsAddingToCart(true);
+    
     console.log(`[DEBUG] Adicionando 1x ${rifa.nome} - antes tinha ${noCarrinho}, vai ter ${noCarrinho + 1}`);
     cart.addItem({ 
       rifaId: rifa.id, 
@@ -95,8 +103,12 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
       quantidade: 1, 
       valorPorNumero: precoFinal 
     });
-    // Reset após 1000ms para permitir novo clique
-    setTimeout(() => setIsAddingToCart(false), 1000);
+    
+    // Reset após 1500ms para permitir novo clique
+    setTimeout(() => {
+      isAddingRef.current = false;
+      setIsAddingToCart(false);
+    }, 1500);
   }
 
   function handleEntrar() {

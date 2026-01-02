@@ -60,6 +60,8 @@ function RifaCard({ rifa, addedId, setAddedId }: { rifa: Rifa; addedId: string |
   const [extras, setExtras] = useState<number>(0);
   const [userComprou, setUserComprou] = useState<boolean>(false);
   const [checkingCompra, setCheckingCompra] = useState<boolean>(true);
+  const [isAddingToCart, setIsAddingToCart] = useState<boolean>(false);
+  const isAddingRef = React.useRef(false);
   
   const { minutesLeft } = useCountdown(rifa.timerExpiresAt || new Date().toISOString());
   
@@ -139,6 +141,12 @@ function RifaCard({ rifa, addedId, setAddedId }: { rifa: Rifa; addedId: string |
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     
+    // Proteção dupla: ref + state
+    if (isAddingRef.current || isAddingToCart) {
+      console.log(`[DEBUG RifaCard] Clique bloqueado - isAddingRef=${isAddingRef.current}, isAddingToCart=${isAddingToCart}`);
+      return;
+    }
+    
     if (travado) {
       alert('⏰ Compras travadas! Faltam menos de 2 minutos para o sorteio.');
       return;
@@ -166,6 +174,10 @@ function RifaCard({ rifa, addedId, setAddedId }: { rifa: Rifa; addedId: string |
       }
     }
     
+    // Marcar como adicionando ANTES de qualquer operação
+    isAddingRef.current = true;
+    setIsAddingToCart(true);
+    
     cart.addItem({
       rifaId: rifa.id,
       nome: rifa.nome + (valorDobrado ? ' (DOBRADO)' : ''),
@@ -173,7 +185,13 @@ function RifaCard({ rifa, addedId, setAddedId }: { rifa: Rifa; addedId: string |
       valorPorNumero: precoFinal,
     });
     setAddedId(rifa.id);
-    setTimeout(() => setAddedId(null), 1200);
+    
+    // Reset após 1500ms para permitir novo clique
+    setTimeout(() => {
+      isAddingRef.current = false;
+      setIsAddingToCart(false);
+      setAddedId(null);
+    }, 1500);
   };
 
   const handleEntrar = () => {

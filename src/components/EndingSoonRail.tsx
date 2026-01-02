@@ -60,8 +60,7 @@ function RifaCard({ rifa, addedId, setAddedId }: { rifa: Rifa; addedId: string |
   const [extras, setExtras] = useState<number>(0);
   const [userComprou, setUserComprou] = useState<boolean>(false);
   const [checkingCompra, setCheckingCompra] = useState<boolean>(true);
-  const [isAddingToCart, setIsAddingToCart] = useState<boolean>(false);
-  const isAddingRef = React.useRef(false);
+  const [quantidade, setQuantidade] = useState<number>(1);
   
   const { minutesLeft } = useCountdown(rifa.timerExpiresAt || new Date().toISOString());
   
@@ -141,9 +140,8 @@ function RifaCard({ rifa, addedId, setAddedId }: { rifa: Rifa; addedId: string |
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     
-    // Proteção dupla: ref + state
-    if (isAddingRef.current || isAddingToCart) {
-      console.log(`[DEBUG RifaCard] Clique bloqueado - isAddingRef=${isAddingRef.current}, isAddingToCart=${isAddingToCart}`);
+    if (quantidade <= 0) {
+      alert('Digite uma quantidade válida');
       return;
     }
     
@@ -162,36 +160,27 @@ function RifaCard({ rifa, addedId, setAddedId }: { rifa: Rifa; addedId: string |
     // Período 2x: permite até 20 extras, mas em múltiplos de 1
     if (valorDobrado) {
       // Verifica se já tem 20+ números no carrinho para esta rifa
-      if (noCarrinho >= 20) {
-        alert(`🔥 Você atingiu o máximo de 20 números extras neste período!`);
+      if (noCarrinho + quantidade > 20) {
+        alert(`🔥 Você atingiu o máximo de 20 números extras neste período! Tem ${noCarrinho}, tentando adicionar ${quantidade}.`);
         return;
       }
     } else {
       // Período normal: respeita disponibilidade
-      if (noCarrinho >= disponivel) {
-        alert(`Você já tem ${noCarrinho} no carrinho. Só restam ${disponivel} números disponíveis.`);
+      if (noCarrinho + quantidade > disponivel) {
+        alert(`Só restam ${disponivel} números disponíveis. Você tem ${noCarrinho}, pode adicionar ${disponivel - noCarrinho}.`);
         return;
       }
     }
     
-    // Marcar como adicionando ANTES de qualquer operação
-    isAddingRef.current = true;
-    setIsAddingToCart(true);
-    
     cart.addItem({
       rifaId: rifa.id,
       nome: rifa.nome + (valorDobrado ? ' (DOBRADO)' : ''),
-      quantidade: 1,
+      quantidade: quantidade,
       valorPorNumero: precoFinal,
     });
     setAddedId(rifa.id);
-    
-    // Reset após 1500ms para permitir novo clique
-    setTimeout(() => {
-      isAddingRef.current = false;
-      setIsAddingToCart(false);
-      setAddedId(null);
-    }, 1500);
+    setQuantidade(1);
+    setTimeout(() => setAddedId(null), 1200);
   };
 
   const handleEntrar = () => {
@@ -296,17 +285,34 @@ function RifaCard({ rifa, addedId, setAddedId }: { rifa: Rifa; addedId: string |
             <div className="mt-auto flex items-center gap-2">
               {/* Botão Comprar - visível durante contagem 2x (2-10 min) */}
               {podeComprar2x && (
-                <button
-                  onClick={handleAdd}
-                  disabled={false}
-                  className={`flex-1 px-3 py-2 font-semibold rounded-lg transition-all shadow-md flex items-center justify-center gap-1 text-sm
-                    bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-600 hover:to-orange-600 animate-pulse
-                    ${addedId === rifa.id ? 'ring-2 ring-green-400 scale-105' : ''}`}
-                  aria-label={`Adicionar ${rifa.nome} ao carrinho`}
-                >
-                  <span>🛒</span> 
-                  {addedId === rifa.id ? 'Adicionado!' : '+20 Números 2X'}
-                </button>
+                <>
+                  <div className="flex items-center gap-1 border border-yellow-400 rounded-lg px-2 py-2 bg-white">
+                    <button
+                      onClick={() => setQuantidade(Math.max(1, quantidade - 1))}
+                      className="px-2 py-1 text-lg font-bold text-gray-600 hover:text-gray-800"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center font-semibold text-gray-800">{quantidade}</span>
+                    <button
+                      onClick={() => setQuantidade(Math.min(20, quantidade + 1))}
+                      className="px-2 py-1 text-lg font-bold text-gray-600 hover:text-gray-800"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleAdd}
+                    disabled={false}
+                    className={`flex-1 px-3 py-2 font-semibold rounded-lg transition-all shadow-md flex items-center justify-center gap-1 text-sm
+                      bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-600 hover:to-orange-600 animate-pulse
+                      ${addedId === rifa.id ? 'ring-2 ring-green-400 scale-105' : ''}`}
+                    aria-label={`Adicionar ${quantidade}x ${rifa.nome} ao carrinho`}
+                  >
+                    <span>🛒</span> 
+                    {addedId === rifa.id ? 'Adicionado!' : `+ ${quantidade} 2X`}
+                  </button>
+                </>
               )}
               
               {/* Se não está em período 2x e esgotado, mostrar mensagem */}

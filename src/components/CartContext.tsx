@@ -14,15 +14,13 @@ type CartContextValue = {
   items: CartItem[];
   addItem: (item: CartItem) => void;
   removeItem: (rifaId: string) => void;
+  updateQuantity: (rifaId: string, quantidade: number) => void;
   clearCart: () => void;
   getTotal: () => number;
   getTotalQuantidade: () => number;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-
-// Variável GLOBAL fora do React para garantir persistência
-const globalLastAddTime: { [key: string]: number } = {};
 
 export function useCart() {
   const c = useContext(CartContext);
@@ -51,16 +49,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   function addItem(item: CartItem) {
-    const now = Date.now();
-    const lastTime = globalLastAddTime[item.rifaId] || 0;
-    
-    // Previne adicionar o mesmo item em menos de 1500ms usando variável GLOBAL
-    if (now - lastTime < 1500) {
-      console.log(`[DEBUG CartContext] Rejeitado - último clique foi há ${now - lastTime}ms`);
-      return;
-    }
-    
-    globalLastAddTime[item.rifaId] = now;
     console.log(`[DEBUG CartContext] addItem called with quantidade=${item.quantidade}`, item);
     
     setItems((prev) => {
@@ -80,6 +68,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => prev.filter((p) => p.rifaId !== rifaId));
   }
 
+  function updateQuantity(rifaId: string, quantidade: number) {
+    if (quantidade <= 0) {
+      removeItem(rifaId);
+      return;
+    }
+    setItems((prev) => {
+      const idx = prev.findIndex((p) => p.rifaId === rifaId);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx].quantidade = quantidade;
+        return copy;
+      }
+      return prev;
+    });
+  }
+
   function clearCart() {
     setItems([]);
   }
@@ -93,7 +97,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clearCart, getTotal, getTotalQuantidade }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, getTotal, getTotalQuantidade }}>
       {children}
     </CartContext.Provider>
   );

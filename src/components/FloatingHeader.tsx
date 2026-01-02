@@ -241,8 +241,25 @@ export function FloatingHeader() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm md:text-base text-gray-900 truncate">{it.nome}</div>
-                      <div className="text-xs md:text-sm text-gray-600 mt-1">
-                        {it.quantidade} × R$ {it.valorPorNumero.toFixed(2)}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 py-1 bg-white">
+                          <button
+                            onClick={() => cart.updateQuantity(it.rifaId, Math.max(1, it.quantidade - 1))}
+                            className="px-1 text-sm font-bold text-gray-600 hover:text-gray-800"
+                          >
+                            −
+                          </button>
+                          <span className="w-6 text-center text-sm font-semibold text-gray-800">{it.quantidade}</span>
+                          <button
+                            onClick={() => cart.updateQuantity(it.rifaId, it.quantidade + 1)}
+                            className="px-1 text-sm font-bold text-gray-600 hover:text-gray-800"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <div className="text-xs md:text-sm text-gray-600">
+                          R$ {it.valorPorNumero.toFixed(2)}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">

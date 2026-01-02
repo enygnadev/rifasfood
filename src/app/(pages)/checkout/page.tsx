@@ -4,6 +4,8 @@ import { useCart } from "@/components/CartContext";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { db } from "@/firebase/client";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 export default function CheckoutPage() {
   const cart = useCart();
@@ -12,6 +14,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [rifasData, setRifasData] = useState<any[]>([]);
 
   useEffect(() => {
     if (cart.items.length === 0) {
@@ -22,6 +25,26 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (user?.email) setEmail(user.email);
   }, [user]);
+
+  // Carregar dados das rifas para mostrar disponibilidade
+  useEffect(() => {
+    async function loadRifasData() {
+      if (cart.items.length === 0 || !db) return;
+      try {
+        const ids = cart.items.map(i => i.rifaId);
+        const q = query(collection(db, 'rifas'), where('__name__', 'in', ids));
+        const snap = await getDocs(q);
+        const data: any[] = [];
+        snap.forEach(doc => {
+          data.push({ id: doc.id, ...doc.data() });
+        });
+        setRifasData(data);
+      } catch (e) {
+        console.error('Erro ao carregar rifas:', e);
+      }
+    }
+    loadRifasData();
+  }, [cart.items]);
 
   const total = cart.getTotal();
   const quantidadeTotal = cart.getTotalQuantidade();
@@ -102,36 +125,98 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">📦 Seu Pedido</h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {cart.items.map((item) => (
-                <div
-                  key={item.rifaId}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
-                >
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">{item.nome}</div>
-                    <div className="text-sm text-gray-600">
-                      {item.quantidade} × R$ {item.valorPorNumero.toFixed(2)}
+              {cart.items.map((item) => {
+                const rifa = rifasData.find(r => r.id === item.rifaId);
+                const disponivel = rifa ? (rifa.meta || 100) - (rifa.vendidos || 0) : '...';
+                return (
+                  <div
+                    key={item.rifaId}
+                    className="flex items-start justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                  >
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900">{item.nome}</div>
+                      {disponivel !== '...' && disponivel > 0 && (
+                        <div className="text-xs text-green-600 font-semibold mt-1">
+                          ✓ {disponivel} tickets disponíveis
+                        </div>
+                      )}
+                      {disponivel === 0 && (
+                        <div className="text-xs text-red-600 font-semibold mt-1">
+                          ⚠️ Esgotado
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 py-1 bg-white">
+                          <button
+                            onClick={() => cart.updateQuantity(item.rifaId, Math.max(1, item.quantidade - 1))}
+                            className="px-1 text-sm font-bold text-gray-600 hover:text-gray-800"
+                          >
+                            −
+                          </button>
+                          <span className="w-6 text-center text-sm font-semibold text-gray-800">{item.quantidade}</span>
+                          <button
+                            onClick={() => cart.updateQuantity(item.rifaId, item.quantidade + 1)}
+                            className="px-1 text-sm font-bold text-gray-600 hover:text-gray-800"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          R$ {item.valorPorNumero.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-bold text-green-600">
+                        R$ {(item.quantidade * item.valorPorNumero).toFixed(2)}
+                      </div>
+                      <button
+                        onClick={() => cart.removeItem(item.rifaId)}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium mt-1"
+                      >
+                        Remover
+                      </button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-green-600">
-                      R$ {(item.quantidade * item.valorPorNumero).toFixed(2)}
-                    </div>
-                    <button
-                      onClick={() => cart.removeItem(item.rifaId)}
-                      className="text-xs text-red-500 hover:text-red-700 font-medium mt-1"
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {/* Dados Pessoais */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-xl font-bold mb-4">👤 Seus Dados</h2>
+            
+            {/* Card do Perfil */}
+            {user && (
+              <div className="mb-6 p-4 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg border border-green-100 flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName || user.email || 'Usuário'}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-green-500"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-blue-400 flex items-center justify-center text-white text-2xl font-bold">
+                      {(user.displayName || user.email || 'U')?.[0]?.toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900">
+                    {user.displayName || 'Usuário'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {user.email}
+                  </div>
+                  <div className="text-xs text-green-600 font-semibold mt-1">
+                    ✓ Logado e verificado
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold mb-2">Email</label>

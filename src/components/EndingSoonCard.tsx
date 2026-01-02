@@ -9,7 +9,7 @@ import { useAuth } from "./AuthProvider";
 
 export function EndingSoonCard({ rifa }: { rifa: any }) {
   const [now, setNow] = useState(new Date());
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [quantidade, setQuantidade] = useState(1);
   const isAddingRef = useRef(false);
   const cart = useCart();
   const router = useRouter();
@@ -67,11 +67,11 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
   const maxExtras = valorDobrado ? 20 : disponivel;
 
   function addToCart() {
-    // Proteção dupla: ref + state
-    if (isAddingRef.current || isAddingToCart) {
-      console.log(`[DEBUG] Clique bloqueado - isAddingRef=${isAddingRef.current}, isAddingToCart=${isAddingToCart}`);
+    if (quantidade <= 0) {
+      alert('Digite uma quantidade válida');
       return;
     }
+    
     if (travado) {
       alert('⏰ Compras travadas! Faltam menos de 2 minutos para o sorteio.');
       return;
@@ -82,33 +82,26 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
     }
     const noCarrinho = cart.items.find(i => i.rifaId === rifa.id)?.quantidade || 0;
     
-    if (valorDobrado && noCarrinho >= maxExtras) {
-      alert(`🔥 Últimos minutos! Máximo de ${maxExtras} números extras permitidos.`);
+    if (valorDobrado && noCarrinho + quantidade > maxExtras) {
+      alert(`🔥 Máximo de ${maxExtras} números extras permitidos. Você tem ${noCarrinho}, tentando adicionar ${quantidade}.`);
       return;
     }
     
-    if (noCarrinho >= disponivel) {
-      alert(`Você já tem ${noCarrinho} no carrinho. Só restam ${disponivel} números disponíveis.`);
+    if (noCarrinho + quantidade > disponivel) {
+      alert(`Só restam ${disponivel} números disponíveis. Você tem ${noCarrinho}, pode adicionar ${disponivel - noCarrinho}.`);
       return;
     }
     
-    // Marcar como adicionando ANTES de qualquer operação
-    isAddingRef.current = true;
-    setIsAddingToCart(true);
-    
-    console.log(`[DEBUG] Adicionando 1x ${rifa.nome} - antes tinha ${noCarrinho}, vai ter ${noCarrinho + 1}`);
+    console.log(`[DEBUG] Adicionando ${quantidade}x ${rifa.nome} - antes tinha ${noCarrinho}, vai ter ${noCarrinho + quantidade}`);
     cart.addItem({ 
       rifaId: rifa.id, 
       nome: rifa.nome + (valorDobrado ? ' (DOBRADO)' : ''), 
-      quantidade: 1, 
+      quantidade: quantidade, 
       valorPorNumero: precoFinal 
     });
     
-    // Reset após 1500ms para permitir novo clique
-    setTimeout(() => {
-      isAddingRef.current = false;
-      setIsAddingToCart(false);
-    }, 1500);
+    // Reset quantidade após adicionar
+    setQuantidade(1);
   }
 
   function handleEntrar() {
@@ -159,21 +152,39 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
         <BarraProgresso progresso={Math.round(((rifa.vendidos||0)/(rifa.meta||100))*100)} />
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex gap-2 items-center">
+        <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 py-2 bg-white">
+          <button
+            onClick={() => setQuantidade(Math.max(1, quantidade - 1))}
+            disabled={travado || esgotado}
+            className="px-2 py-1 text-lg font-bold text-gray-600 hover:text-gray-800 disabled:text-gray-300"
+          >
+            −
+          </button>
+          <span className="w-8 text-center font-semibold text-gray-800">{quantidade}</span>
+          <button
+            onClick={() => setQuantidade(Math.min(disponivel, quantidade + 1))}
+            disabled={travado || esgotado}
+            className="px-2 py-1 text-lg font-bold text-gray-600 hover:text-gray-800 disabled:text-gray-300"
+          >
+            +
+          </button>
+        </div>
+        
         <button className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-2 rounded cta-animated" onClick={() => window.location.href = `/rifa?rifa=${rifa.id}`} aria-label={`Ver ${rifa.nome}`}>Ver</button>
         <button 
-          className={`px-3 py-2 rounded text-sm font-semibold transition-all ${
-            travado || esgotado || isAddingToCart
+          className={`flex-1 px-3 py-2 rounded text-sm font-semibold transition-all ${
+            travado || esgotado
               ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
               : valorDobrado 
                 ? 'bg-yellow-500 text-black hover:bg-yellow-600' 
                 : 'bg-white border hover:bg-gray-50'
           }`}
           onClick={addToCart} 
-          disabled={travado || esgotado || isAddingToCart}
-          aria-label={`Adicionar ${rifa.nome} ao carrinho`}
+          disabled={travado || esgotado}
+          aria-label={`Adicionar ${quantidade}x ${rifa.nome} ao carrinho`}
         >
-          {travado ? '🔒 Travado' : esgotado ? 'Esgotado' : isAddingToCart ? '⏳' : valorDobrado ? '+ 2X' : '+ Carrinho'}
+          {travado ? '🔒 Travado' : esgotado ? 'Esgotado' : valorDobrado ? `+ ${quantidade} 2X` : `+ ${quantidade}`}
         </button>
         <button 
           className={`px-3 py-2 rounded text-sm font-semibold ${

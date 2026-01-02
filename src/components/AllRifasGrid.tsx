@@ -32,6 +32,167 @@ const CATEGORIAS_DEFAULT = [
   { id: "outros", label: "Outros", emoji: "🎁" },
 ];
 
+// Componente separado para o card com estado
+function RifaCard({ rifa }: { rifa: Rifa }) {
+  const [quantidade, setQuantidade] = useState(1);
+  const cart = useCart();
+
+  const progresso = Math.round(((rifa.vendidos || 0) / (rifa.meta || 1)) * 100);
+  const disponivel = (rifa.meta || 100) - (rifa.vendidos || 0);
+  const esgotado = disponivel <= 0;
+  const quaseAcabando = progresso >= 80;
+  const desconto = rifa.desconto || (progresso >= 90 ? 10 : 0);
+  const precoOriginal = rifa.valorPorNumero || rifa.valor || 10;
+  const precoComDesconto = desconto
+    ? precoOriginal * (1 - desconto / 100)
+    : precoOriginal;
+  const tempoRestante = rifa.timerExpiresAt
+    ? `${Math.max(0, Math.floor((new Date(rifa.timerExpiresAt).getTime() - Date.now()) / 60000))} min`
+    : "--";
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if ((rifa.vendidos || 0) >= (rifa.meta || 100)) {
+      alert('Esta rifa já esgotou!');
+      return;
+    }
+    if (esgotado) {
+      alert('Esta rifa já esgotou!');
+      return;
+    }
+    const noCarrinho = cart.items.find(i => i.rifaId === rifa.id)?.quantidade || 0;
+    if (noCarrinho + quantidade > disponivel) {
+      alert(`Só restam ${disponivel} números disponíveis. Você tem ${noCarrinho}, pode adicionar ${disponivel - noCarrinho}.`);
+      return;
+    }
+    cart.addItem({
+      rifaId: rifa.id,
+      nome: rifa.nome,
+      quantidade: quantidade,
+      valorPorNumero: precoOriginal,
+    });
+    setQuantidade(1);
+  };
+
+  const rifaBadges = getBadges(rifa);
+  
+  return (
+    <div
+      key={rifa.id}
+      className="group bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:-translate-y-1 flex flex-col"
+    >
+      {/* Miniatura da imagem */}
+      {rifa.imagem && (
+        <div className="relative h-32 w-full overflow-hidden flex-shrink-0">
+          <img
+            src={rifa.imagem}
+            alt={rifa.nome}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+          {esgotado && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">ESGOTADO</span>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="p-4 flex flex-col flex-1">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-bold text-gray-800 group-hover:text-green-600 transition truncate flex-1">
+            {rifa.nome}
+          </h3>
+          {desconto > 0 && (
+            <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full animate-bounce">
+              -{desconto}%
+            </span>
+          )}
+        </div>
+
+        {rifa.descricao && (
+          <p className="text-gray-500 text-sm mb-2 line-clamp-2">
+            {rifa.descricao}
+          </p>
+        )}
+
+        {rifaBadges.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {rifaBadges.map((badge, idx) => (
+              <span
+                key={idx}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full ${badge.color} ${badge.label === "Últimos Momentos" ? "animate-pulse" : ""}`}
+              >
+                {badge.icon} {badge.label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+          <span>🛒 {rifa.vendidos || 0}/{rifa.meta || 0}</span>
+          {disponivel > 0 && disponivel <= 10 && (
+            <span className="text-red-500 font-semibold">Restam {disponivel}!</span>
+          )}
+          <span className="ml-auto">⏱️ {tempoRestante}</span>
+        </div>
+
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+          <div
+            className={`h-2 rounded-full transition-all duration-500 ${
+              quaseAcabando
+                ? "bg-gradient-to-r from-red-400 to-red-600"
+                : "bg-gradient-to-r from-green-400 to-green-600"
+            }`}
+            style={{ width: `${progresso}%` }}
+          />
+        </div>
+
+        <div className="mt-auto flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-lg font-bold text-green-700">
+              R$ {precoComDesconto.toFixed(2)}
+            </span>
+            {desconto > 0 && (
+              <span className="text-sm line-through text-gray-400">
+                R$ {precoOriginal.toFixed(2)}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-1 border border-gray-300 rounded-lg px-2 py-1 bg-white">
+              <button
+                onClick={() => setQuantidade(Math.max(1, quantidade - 1))}
+                disabled={esgotado}
+                className="px-1 py-0.5 text-sm font-bold text-gray-600 hover:text-gray-800 disabled:text-gray-300"
+              >
+                −
+              </button>
+              <span className="w-6 text-center text-sm font-semibold text-gray-800">{quantidade}</span>
+              <button
+                onClick={() => setQuantidade(Math.min(disponivel, quantidade + 1))}
+                disabled={esgotado}
+                className="px-1 py-0.5 text-sm font-bold text-gray-600 hover:text-gray-800 disabled:text-gray-300"
+              >
+                +
+              </button>
+            </div>
+            <button
+              onClick={handleAdd}
+              disabled={esgotado}
+              className={`px-3 py-2 text-sm font-semibold rounded-lg shadow transition-all flex items-center gap-1 whitespace-nowrap ${
+                esgotado 
+                  ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+            >
+              <span>🛒</span> {esgotado ? 'Esgotado' : `+ ${quantidade}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getBadges(rifa: Rifa): { label: string; color: string; icon: string }[] {
   const badges: { label: string; color: string; icon: string }[] = [];
   const percentComplete = (rifa.meta || 1) > 0 ? ((rifa.vendidos || 0) / (rifa.meta || 1)) * 100 : 0;
@@ -183,145 +344,9 @@ export default function AllRifasGrid() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredRifas.map((rifa) => {
-            const progresso = Math.round(((rifa.vendidos || 0) / (rifa.meta || 1)) * 100);
-            const disponivel = (rifa.meta || 100) - (rifa.vendidos || 0);
-            const esgotado = disponivel <= 0;
-            const quaseAcabando = progresso >= 80;
-            const desconto = rifa.desconto || (progresso >= 90 ? 10 : 0);
-            const precoOriginal = rifa.valorPorNumero || rifa.valor || 10;
-            const precoComDesconto = desconto
-              ? precoOriginal * (1 - desconto / 100)
-              : precoOriginal;
-            const tempoRestante = rifa.timerExpiresAt
-              ? `${Math.max(0, Math.floor((new Date(rifa.timerExpiresAt).getTime() - Date.now()) / 60000))} min`
-              : "--";
-
-            const handleAdd = (e: React.MouseEvent) => {
-              e.preventDefault();
-              // Verificar se esgotou (vendidos >= meta)
-              if ((rifa.vendidos || 0) >= (rifa.meta || 100)) {
-                alert('Esta rifa já esgotou!');
-                return;
-              }
-              if (esgotado) {
-                alert('Esta rifa já esgotou!');
-                return;
-              }
-              // Verificar quantidade já no carrinho
-              const noCarrinho = cart.items.find(i => i.rifaId === rifa.id)?.quantidade || 0;
-              if (noCarrinho >= disponivel) {
-                alert(`Você já tem ${noCarrinho} no carrinho. Só restam ${disponivel} números disponíveis.`);
-                return;
-              }
-              cart.addItem({
-                rifaId: rifa.id,
-                nome: rifa.nome,
-                quantidade: 1,
-                valorPorNumero: precoOriginal,
-              });
-            };
-
-            const rifaBadges = getBadges(rifa);
-            return (
-              <div
-                key={rifa.id}
-                className="group bg-white rounded-xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:-translate-y-1 flex flex-col"
-              >
-                {/* Miniatura da imagem */}
-                {rifa.imagem && (
-                  <div className="relative h-32 w-full overflow-hidden flex-shrink-0">
-                    <img
-                      src={rifa.imagem}
-                      alt={rifa.nome}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    {esgotado && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">ESGOTADO</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="p-4 flex flex-col flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-bold text-gray-800 group-hover:text-green-600 transition truncate flex-1">
-                      {rifa.nome}
-                    </h3>
-                    {desconto > 0 && (
-                      <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full animate-bounce">
-                        -{desconto}%
-                      </span>
-                    )}
-                  </div>
-
-                  {rifa.descricao && (
-                    <p className="text-gray-500 text-sm mb-2 line-clamp-2">
-                      {rifa.descricao}
-                    </p>
-                  )}
-
-                  {rifaBadges.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {rifaBadges.map((badge, idx) => (
-                        <span
-                          key={idx}
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full ${badge.color} ${badge.label === "Últimos Momentos" ? "animate-pulse" : ""}`}
-                        >
-                          {badge.icon} {badge.label}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Prêmio removido do card */}
-
-                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-                    <span>🛒 {rifa.vendidos || 0}/{rifa.meta || 0}</span>
-                    {disponivel > 0 && disponivel <= 10 && (
-                      <span className="text-red-500 font-semibold">Restam {disponivel}!</span>
-                    )}
-                    <span className="ml-auto">⏱️ {tempoRestante}</span>
-                  </div>
-
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${
-                        quaseAcabando
-                          ? "bg-gradient-to-r from-red-400 to-red-600"
-                          : "bg-gradient-to-r from-green-400 to-green-600"
-                      }`}
-                      style={{ width: `${progresso}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-between">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-bold text-green-700">
-                        R$ {precoComDesconto.toFixed(2)}
-                      </span>
-                      {desconto > 0 && (
-                        <span className="text-sm line-through text-gray-400">
-                          R$ {precoOriginal.toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={handleAdd}
-                      disabled={esgotado}
-                      className={`px-3 py-2 text-sm font-semibold rounded-lg shadow transition-all flex items-center gap-1 ${
-                        esgotado 
-                          ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                          : 'bg-green-600 hover:bg-green-700 text-white'
-                      }`}
-                    >
-                      <span>🛒</span> {esgotado ? 'Esgotado' : 'Adicionar'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {filteredRifas.map((rifa) => (
+            <RifaCard key={rifa.id} rifa={rifa} />
+          ))}
         </div>
       )}
     </section>

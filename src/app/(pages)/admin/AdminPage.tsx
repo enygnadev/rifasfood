@@ -152,7 +152,12 @@ function DashboardTab() {
     totalUsuarios: 0,
     totalVendas: 0,
     lucroTotal: 0,
+    vendasHoje: 0,
+    vendasSemana: 0,
+    vendasMes: 0,
   });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [topRifas, setTopRifas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -160,18 +165,63 @@ function DashboardTab() {
       try {
         const rifasSnap = await getDocs(collection(db, "rifas"));
         const rifasAtivas = rifasSnap.docs.filter((d) => d.data().status !== "finalizado").length;
-
         const usuariosSnap = await getDocs(collection(db, "usuarios"));
-
         const comprasSnap = await getDocs(collection(db, "compras"));
-        const totalVendas = comprasSnap.docs.reduce((acc, d) => acc + (d.data().valor || 0), 0);
+        
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        let vendasHoje = 0, vendasSemana = 0, vendasMes = 0, lucroTotal = 0;
+        const activities: any[] = [];
+
+        comprasSnap.docs.forEach((d) => {
+          const data = d.data();
+          const valor = data.valor || 0;
+          lucroTotal += valor;
+          const createdAt = data.createdAt?.toDate?.();
+          if (createdAt) {
+            if (createdAt >= todayStart) vendasHoje += valor;
+            if (createdAt >= weekStart) vendasSemana += valor;
+            if (createdAt >= monthStart) vendasMes += valor;
+            activities.push({ type: "compra", text: `Compra de R$ ${valor.toFixed(2)}`, time: createdAt, icon: "🎫" });
+          }
+        });
+
+        const historicoSnap = await getDocs(query(collection(db, "historico"), orderBy("sortedAt", "desc")));
+        historicoSnap.docs.slice(0, 3).forEach((d) => {
+          const data = d.data();
+          activities.push({ type: "sorteio", text: `Sorteio: ${data.rifaNome}`, time: data.sortedAt?.toDate?.(), icon: "🏆" });
+        });
+
+        usuariosSnap.docs.slice(0, 3).forEach((d) => {
+          const data = d.data();
+          const createdAt = data.createdAt?.toDate?.();
+          if (createdAt) {
+            activities.push({ type: "usuario", text: `Novo usuário: ${data.nome || "Anônimo"}`, time: createdAt, icon: "👤" });
+          }
+        });
+
+        activities.sort((a, b) => (b.time?.getTime?.() || 0) - (a.time?.getTime?.() || 0));
+        setRecentActivity(activities.slice(0, 6));
+
+        const topRifasData = rifasSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((r: any) => r.status !== "finalizado")
+          .sort((a: any, b: any) => (b.vendidos || 0) - (a.vendidos || 0))
+          .slice(0, 5);
+        setTopRifas(topRifasData);
 
         setStats({
           totalRifas: rifasSnap.size,
           rifasAtivas,
           totalUsuarios: usuariosSnap.size,
           totalVendas: comprasSnap.size,
-          lucroTotal: totalVendas,
+          lucroTotal,
+          vendasHoje,
+          vendasSemana,
+          vendasMes,
         });
       } catch (err) {
         console.error("Error fetching stats:", err);
@@ -182,6 +232,19 @@ function DashboardTab() {
     fetchStats();
   }, []);
 
+  function formatTimeAgo(date: Date | undefined) {
+    if (!date) return "-";
+    const now = Date.now();
+    const diff = now - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return "agora";
+    if (minutes < 60) return `há ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `há ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `há ${days}d`;
+  }
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -191,6 +254,8 @@ function DashboardTab() {
       </div>
     );
   }
+
+  const taxaConversao = stats.totalUsuarios > 0 ? ((stats.totalVendas / stats.totalUsuarios) * 100).toFixed(1) : "0";
 
   return (
     <div>
@@ -203,38 +268,71 @@ function DashboardTab() {
         <StatCard icon="💰" label="Lucro Total" value={`R$ ${stats.lucroTotal.toFixed(2)}`} color="yellow" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h3 className="font-semibold text-gray-800 mb-4">Atividade Recente</h3>
-          <div className="space-y-3">
-            <ActivityItem icon="🎫" text="Nova compra realizada" time="há 5 min" />
-            <ActivityItem icon="🎰" text="Rifa 'iPhone 15' criada" time="há 1 hora" />
-            <ActivityItem icon="🏆" text="Sorteio realizado" time="há 2 horas" />
-            <ActivityItem icon="👤" text="Novo usuário cadastrado" time="há 3 horas" />
-          </div>
+          {recentActivity.length === 0 ? (
+            <p className="text-gray-500 text-sm">Nenhuma atividade recente</p>
+          ) : (
+            <div className="space-y-3">
+              {recentActivity.map((a, i) => (
+                <ActivityItem key={i} icon={a.icon} text={a.text} time={formatTimeAgo(a.time)} />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="font-semibold text-gray-800 mb-4">Resumo Rápido</h3>
+          <h3 className="font-semibold text-gray-800 mb-4">Resumo de Vendas</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-600">Vendas hoje</span>
-              <span className="font-medium">R$ 450,00</span>
+              <span className="font-medium text-green-600">R$ {stats.vendasHoje.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Vendas esta semana</span>
-              <span className="font-medium">R$ 2.100,00</span>
+              <span className="font-medium">R$ {stats.vendasSemana.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Vendas este mês</span>
-              <span className="font-medium">R$ 8.500,00</span>
+              <span className="font-medium">R$ {stats.vendasMes.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between border-t pt-2">
               <span className="text-gray-600">Taxa de conversão</span>
-              <span className="font-medium text-green-600">12.5%</span>
+              <span className="font-medium text-blue-600">{taxaConversao}%</span>
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h3 className="font-semibold text-gray-800 mb-4">Top Rifas Ativas</h3>
+        {topRifas.length === 0 ? (
+          <p className="text-gray-500 text-sm">Nenhuma rifa ativa</p>
+        ) : (
+          <div className="space-y-3">
+            {topRifas.map((rifa: any) => {
+              const percent = rifa.meta > 0 ? Math.round(((rifa.vendidos || 0) / rifa.meta) * 100) : 0;
+              return (
+                <div key={rifa.id} className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-medium">{rifa.nome}</span>
+                      <span className="text-xs text-gray-500">{rifa.vendidos || 0}/{rifa.meta}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${percent >= 80 ? "bg-green-500" : percent >= 50 ? "bg-yellow-500" : "bg-blue-500"}`}
+                        style={{ width: `${Math.min(percent, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className={`text-sm font-bold ${percent >= 80 ? "text-green-600" : "text-gray-600"}`}>{percent}%</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -751,32 +849,60 @@ function ConfiguracoesTab() {
     siteName: "RifaFood",
     commission: "10",
     minPurchase: "1",
-    maxPurchase: "100",
+    maxPurchase: "50",
     enableNotifications: true,
     maintenanceMode: false,
+    boostThreshold: "80",
+    boostStagnantMinutes: "5",
+    countdownMinutes: "10",
+    bonusAt50: "1",
+    bonusAt70: "2",
+    bonusAt90: "3",
   });
   const [autoRifaEnabled, setAutoRifaEnabled] = useState(false);
   const [autoRifaLoading, setAutoRifaLoading] = useState(true);
+  const [configLoading, setConfigLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "config", "autoRifa"), (snap) => {
+    const unsubAuto = onSnapshot(doc(db, "config", "autoRifa"), (snap) => {
       if (snap.exists()) {
         setAutoRifaEnabled(snap.data().enabled || false);
       }
       setAutoRifaLoading(false);
     });
-    return () => unsub();
+
+    const unsubConfig = onSnapshot(doc(db, "config", "system"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setConfig((prev) => ({
+          ...prev,
+          siteName: data.siteName || prev.siteName,
+          commission: String(data.commission || prev.commission),
+          minPurchase: String(data.minPurchase || prev.minPurchase),
+          maxPurchase: String(data.maxPurchase || prev.maxPurchase),
+          enableNotifications: data.enableNotifications ?? prev.enableNotifications,
+          maintenanceMode: data.maintenanceMode ?? prev.maintenanceMode,
+          boostThreshold: String(data.boostThreshold || prev.boostThreshold),
+          boostStagnantMinutes: String(data.boostStagnantMinutes || prev.boostStagnantMinutes),
+          countdownMinutes: String(data.countdownMinutes || prev.countdownMinutes),
+          bonusAt50: String(data.bonusAt50 || prev.bonusAt50),
+          bonusAt70: String(data.bonusAt70 || prev.bonusAt70),
+          bonusAt90: String(data.bonusAt90 || prev.bonusAt90),
+        }));
+      }
+      setConfigLoading(false);
+    });
+
+    return () => { unsubAuto(); unsubConfig(); };
   }, []);
 
   async function toggleAutoRifa() {
     try {
       const newValue = !autoRifaEnabled;
-      await updateDoc(doc(db, "config", "autoRifa"), { enabled: newValue, updatedAt: serverTimestamp() }).catch(async () => {
-        const { setDoc } = await import("firebase/firestore");
-        await setDoc(doc(db, "config", "autoRifa"), { enabled: newValue, updatedAt: serverTimestamp() });
-      });
+      const { setDoc } = await import("firebase/firestore");
+      await setDoc(doc(db, "config", "autoRifa"), { enabled: newValue, updatedAt: serverTimestamp() }, { merge: true });
 
       if (newValue) {
         fetch("/api/auto-rifa/init", { method: "POST" }).catch(console.error);
@@ -789,10 +915,49 @@ function ConfiguracoesTab() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      const { setDoc } = await import("firebase/firestore");
+      await setDoc(doc(db, "config", "system"), {
+        siteName: config.siteName,
+        commission: Number(config.commission),
+        minPurchase: Number(config.minPurchase),
+        maxPurchase: Number(config.maxPurchase),
+        enableNotifications: config.enableNotifications,
+        maintenanceMode: config.maintenanceMode,
+        boostThreshold: Number(config.boostThreshold),
+        boostStagnantMinutes: Number(config.boostStagnantMinutes),
+        countdownMinutes: Number(config.countdownMinutes),
+        bonusAt50: Number(config.bonusAt50),
+        bonusAt70: Number(config.bonusAt70),
+        bonusAt90: Number(config.bonusAt90),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error("Error saving config:", err);
+      alert("Erro ao salvar configurações");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const products = [
+    { emoji: "🍗", nome: "Frango Assado", meta: 100, valor: 5, premio: 250 },
+    { emoji: "🥩", nome: "Carne Assada", meta: 150, valor: 8, premio: 400 },
+    { emoji: "🍱", nome: "Marmita P", meta: 50, valor: 3, premio: 75 },
+    { emoji: "🍱", nome: "Marmita M", meta: 80, valor: 5, premio: 150 },
+    { emoji: "🍱", nome: "Marmita G", meta: 100, valor: 7, premio: 250 },
+  ];
+
+  if (configLoading) {
+    return (
+      <div className="space-y-6">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-gray-200 h-40 rounded-xl animate-pulse" />
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -834,14 +999,103 @@ function ConfiguracoesTab() {
           </div>
         </div>
         {autoRifaEnabled && (
-          <div className="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 md:grid-cols-5 gap-3">
-            {["🍗 Frango Assado", "🥩 Carne Assada", "🍱 Marmita P", "🍱 Marmita M", "🍱 Marmita G"].map((p) => (
-              <div key={p} className="bg-white/10 rounded-lg px-3 py-2 text-center text-sm">
-                {p}
-              </div>
-            ))}
+          <div className="mt-4 pt-4 border-t border-white/20">
+            <p className="text-sm text-purple-200 mb-3">Produtos ativos no motor automático:</p>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {products.map((p, i) => (
+                <div key={i} className="bg-white/10 rounded-lg px-3 py-2 text-center">
+                  <div className="text-lg">{p.emoji}</div>
+                  <div className="text-sm font-medium">{p.nome}</div>
+                  <div className="text-xs text-purple-200">Meta: {p.meta} | R${p.valor}</div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
+      </div>
+
+      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg p-6 mb-6 text-white">
+        <h3 className="text-xl font-bold flex items-center gap-2 mb-4">
+          <span>🚀</span> Táticas de Vendas Automáticas
+        </h3>
+        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm text-orange-100 mb-1">Boost ativa em (%)</label>
+            <input
+              type="number"
+              value={config.boostThreshold}
+              onChange={(e) => setConfig((p) => ({ ...p, boostThreshold: e.target.value }))}
+              className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50"
+              placeholder="80"
+            />
+            <p className="text-xs text-orange-200 mt-1">Sistema acelera vendas automaticamente</p>
+          </div>
+          <div>
+            <label className="block text-sm text-orange-100 mb-1">Tempo estagnado (min)</label>
+            <input
+              type="number"
+              value={config.boostStagnantMinutes}
+              onChange={(e) => setConfig((p) => ({ ...p, boostStagnantMinutes: e.target.value }))}
+              className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50"
+              placeholder="5"
+            />
+            <p className="text-xs text-orange-200 mt-1">Aguarda X min antes de acelerar</p>
+          </div>
+          <div>
+            <label className="block text-sm text-orange-100 mb-1">Countdown (min)</label>
+            <input
+              type="number"
+              value={config.countdownMinutes}
+              onChange={(e) => setConfig((p) => ({ ...p, countdownMinutes: e.target.value }))}
+              className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50"
+              placeholder="10"
+            />
+            <p className="text-xs text-orange-200 mt-1">Tempo antes do sorteio</p>
+          </div>
+          <div>
+            <label className="block text-sm text-orange-100 mb-1">Bônus em 50%</label>
+            <input
+              type="number"
+              value={config.bonusAt50}
+              onChange={(e) => setConfig((p) => ({ ...p, bonusAt50: e.target.value }))}
+              className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50"
+              placeholder="1"
+            />
+            <p className="text-xs text-orange-200 mt-1">Números bônus grátis</p>
+          </div>
+          <div>
+            <label className="block text-sm text-orange-100 mb-1">Bônus em 70%</label>
+            <input
+              type="number"
+              value={config.bonusAt70}
+              onChange={(e) => setConfig((p) => ({ ...p, bonusAt70: e.target.value }))}
+              className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50"
+              placeholder="2"
+            />
+            <p className="text-xs text-orange-200 mt-1">Números bônus grátis</p>
+          </div>
+          <div>
+            <label className="block text-sm text-orange-100 mb-1">Bônus em 90%</label>
+            <input
+              type="number"
+              value={config.bonusAt90}
+              onChange={(e) => setConfig((p) => ({ ...p, bonusAt90: e.target.value }))}
+              className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50"
+              placeholder="3"
+            />
+            <p className="text-xs text-orange-200 mt-1">Números bônus grátis</p>
+          </div>
+          <div className="md:col-span-3 flex gap-3 mt-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-2 bg-white text-orange-600 rounded-lg font-bold hover:bg-orange-50 transition disabled:opacity-50"
+            >
+              {saving ? "Salvando..." : "Salvar Táticas"}
+            </button>
+            {saved && <span className="text-white text-sm flex items-center">Salvo com sucesso!</span>}
+          </div>
+        </form>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

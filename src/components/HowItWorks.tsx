@@ -10,6 +10,7 @@ export default function HowItWorks(){
         <li><strong>Compre números</strong> — sistema dá mais números quanto mais perto da meta.</li>
         <li><strong>Meta atingida</strong> — compras travadas, contagem regressiva de 10 minutos começa.</li>
         <li><strong>Período 2X Premium</strong> — durante os 10 minutos de contagem, até 20 números extras ficam disponíveis pelo preço dobrado! 🔥 Oportunidade única para aumentar suas chances antes do sorteio.</li>
+        <li><strong>Sorteio 100% Seguro</strong> — usamos criptografia SHA-256 com seed verificável (timestamp + rifaId + números vendidos). O algoritmo é auditável: qualquer pessoa pode recalcular o resultado com os mesmos dados. 🔐 Transparência total, sem manipulação.</li>
         <li><strong>Sorteio automático</strong> — resultado transparente e anúncio imediato.</li>
         <li><strong>Nova rodada</strong> — rifa reiniciada automaticamente para manter o ritmo.</li>
       </ol>

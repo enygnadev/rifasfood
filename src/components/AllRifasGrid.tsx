@@ -88,6 +88,14 @@ export default function AllRifasGrid() {
     );
   }, [rifas]);
 
+  // Ordem fixa personalizada: Carne Assada, Frango, Marmitas...
+  const ORDEM_RIFAS = [
+    "carne assada",
+    "frango",
+    "marmitas",
+    "marmita",
+  ];
+
   const filteredRifas = useMemo(() => {
     // Filtrar rifas que NÃO estão em contagem, encerrada ou finalizado
     // Essas vão para o componente "Prestes a Sortear"
@@ -97,8 +105,27 @@ export default function AllRifasGrid() {
       r.status !== "finalizado"
     );
     
-    if (activeFilter === "todas") return rifasAtivas;
-    return rifasAtivas.filter((r) => (r.categoria || "outros") === activeFilter);
+    // Ordenar pela ordem fixa definida (C, F, M...)
+    const rifasOrdenadas = rifasAtivas.sort((a, b) => {
+      const nomeA = (a.nome || "").toLowerCase();
+      const nomeB = (b.nome || "").toLowerCase();
+      
+      // Encontrar índice na ordem fixa (busca parcial)
+      const idxA = ORDEM_RIFAS.findIndex(item => nomeA.includes(item));
+      const idxB = ORDEM_RIFAS.findIndex(item => nomeB.includes(item));
+      
+      // Se ambos estão na lista, ordenar pela posição
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      // Se apenas A está na lista, A vem primeiro
+      if (idxA !== -1) return -1;
+      // Se apenas B está na lista, B vem primeiro
+      if (idxB !== -1) return 1;
+      // Se nenhum está na lista, ordenar alfabeticamente
+      return nomeA.localeCompare(nomeB, "pt-BR", { sensitivity: "base" });
+    });
+    
+    if (activeFilter === "todas") return rifasOrdenadas;
+    return rifasOrdenadas.filter((r) => (r.categoria || "outros") === activeFilter);
   }, [rifas, activeFilter]);
 
   if (loading) {

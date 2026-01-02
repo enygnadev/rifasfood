@@ -279,7 +279,12 @@ export function FloatingHeader() {
                       return;
                     }
                     setOpen(false); // Fecha a janela flutuante
-                    router.push('/checkout');
+                    // Se não está logado, vai para login (com redirect para checkout)
+                    if (!isLoggedIn) {
+                      router.push('/login?redirect=/checkout');
+                    } else {
+                      router.push('/checkout');
+                    }
                   }}
                 >
                   Finalizar Compra

@@ -3,11 +3,14 @@ import React, { useState } from "react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/firebase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function CadastroPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/painel";
+  
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -115,7 +118,7 @@ export default function CadastroPage() {
         updatedAt: serverTimestamp(),
       });
 
-      router.push("/painel");
+      router.push(redirectTo);
     } catch (err: any) {
       console.error("Signup error:", err);
       if (err.code === "auth/email-already-in-use") {
@@ -263,7 +266,7 @@ export default function CadastroPage() {
           <div className="mt-6 text-center">
             <p className="text-gray-500 text-sm">
               Já tem uma conta?{" "}
-              <Link href="/login" className="text-green-600 hover:text-green-700 font-medium">
+              <Link href={`/login${redirectTo !== "/painel" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="text-green-600 hover:text-green-700 font-medium">
                 Entrar
               </Link>
             </p>

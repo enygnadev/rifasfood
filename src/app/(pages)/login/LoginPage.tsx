@@ -2,11 +2,14 @@
 import React, { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/painel";
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -19,7 +22,7 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/painel");
+      router.push(redirectTo);
     } catch (err: any) {
       console.error("Login error:", err);
       if (err.code === "auth/user-not-found") {
@@ -91,7 +94,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-gray-500 text-sm">
               Não tem uma conta?{" "}
-              <Link href="/cadastro" className="text-green-600 hover:text-green-700 font-medium">
+              <Link href={`/cadastro${redirectTo !== "/painel" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`} className="text-green-600 hover:text-green-700 font-medium">
                 Criar conta
               </Link>
             </p>

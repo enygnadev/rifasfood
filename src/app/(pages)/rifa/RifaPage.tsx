@@ -2,7 +2,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { BarraProgresso } from "@/components/BarraProgresso";
-import PaymentSelector from "@/components/PaymentSelector";
+import PaymentSelector, { PaymentMethod } from "@/components/PaymentSelector";
 import { calcularNumerosPorCompra } from "@/utils/rifa";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "@/firebase/client";
@@ -13,7 +13,7 @@ export default function RifaPage() {
   const id = search?.get("id") || "galinha";
   const [rifa, setRifa] = useState<any | null>(null);
   const [comprando, setComprando] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'simulated' | 'pix' | 'stripe'>(process.env.NEXT_PUBLIC_PAYMENT_PROVIDER === 'stripe' ? 'stripe' : 'simulated');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(process.env.NEXT_PUBLIC_PAYMENT_PROVIDER === 'stripe' ? 'stripe' : 'pix');
 
   useEffect(() => {
     const ref = doc(db, "rifas", id);
@@ -35,7 +35,7 @@ export default function RifaPage() {
 
     // If user picked stripe but stripe isn't configured, warn
     if (paymentMethod === 'stripe' && process.env.NEXT_PUBLIC_PAYMENT_PROVIDER !== 'stripe') {
-      alert('Cartão/Stripe não configurado no servidor. Escolha PIX ou Simulado.');
+      alert('Cartão/Stripe não configurado no servidor. Escolha PIX.');
       setComprando(false);
       return;
     }

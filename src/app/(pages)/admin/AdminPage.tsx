@@ -1,12 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+const AutomaticoTab = dynamic(() => import("./AutomaticoTab"), { ssr: false });
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { db } from "@/firebase/client";
 import { collection, query, orderBy, onSnapshot, doc, deleteDoc, updateDoc, addDoc, serverTimestamp, getDocs, where, getDoc } from "firebase/firestore";
 import Link from "next/link";
 
-type AdminTab = "dashboard" | "rifas" | "usuarios" | "vendas" | "configuracoes";
+type AdminTab = "dashboard" | "rifas" | "usuarios" | "vendas" | "configuracoes" | "automatico";
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -92,6 +94,7 @@ export default function AdminPage() {
     { id: "rifas" as AdminTab, label: "Rifas", icon: "🎰" },
     { id: "usuarios" as AdminTab, label: "Usuários", icon: "👥" },
     { id: "vendas" as AdminTab, label: "Vendas", icon: "💰" },
+    { id: "automatico" as AdminTab, label: "Automático", icon: "🤖" },
     { id: "configuracoes" as AdminTab, label: "Configurações", icon: "⚙️" },
   ];
 
@@ -138,6 +141,7 @@ export default function AdminPage() {
           {activeTab === "rifas" && <RifasTab />}
           {activeTab === "usuarios" && <UsuariosTab />}
           {activeTab === "vendas" && <VendasTab />}
+          {activeTab === "automatico" && <AutomaticoTab />}
           {activeTab === "configuracoes" && <ConfiguracoesTab />}
         </div>
       </main>
@@ -519,7 +523,6 @@ function RifaForm({ rifa, onSubmit, onCancel }: { rifa?: any; onSubmit: (data: a
     nome: rifa?.nome || "",
     meta: rifa?.meta || "",
     valorPorNumero: rifa?.valorPorNumero || rifa?.valor || "",
-    premio: rifa?.premio || "",
     categoria: rifa?.categoria || "outros",
     descricao: rifa?.descricao || "",
   });
@@ -530,7 +533,6 @@ function RifaForm({ rifa, onSubmit, onCancel }: { rifa?: any; onSubmit: (data: a
       nome: formData.nome,
       meta: Number(formData.meta),
       valorPorNumero: Number(formData.valorPorNumero),
-      premio: Number(formData.premio),
       categoria: formData.categoria,
       descricao: formData.descricao,
     });
@@ -569,16 +571,6 @@ function RifaForm({ rifa, onSubmit, onCancel }: { rifa?: any; onSubmit: (data: a
             step="0.01"
             value={formData.valorPorNumero}
             onChange={(e) => setFormData((p) => ({ ...p, valorPorNumero: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-lg"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Prêmio (R$)</label>
-          <input
-            type="number"
-            value={formData.premio}
-            onChange={(e) => setFormData((p) => ({ ...p, premio: e.target.value }))}
             className="w-full px-3 py-2 border rounded-lg"
             required
           />
@@ -646,13 +638,26 @@ function UsuariosTab() {
       u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  async function toggleRole(userId: string, currentRole: string) {
-    const newRole = currentRole === "admin" ? "cliente" : "admin";
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editRole, setEditRole] = useState<string>("");
+  const [savingRole, setSavingRole] = useState(false);
+
+  async function saveRole(userId: string, newRole: string) {
+    setSavingRole(true);
     try {
       await updateDoc(doc(db, "usuarios", userId), { role: newRole });
+      // Chama Cloud Function para atualizar custom claim
+      const res = await fetch("/api/setUserAdminClaim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: userId, admin: newRole === "admin" })
+      });
+      if (!res.ok) throw new Error("Erro ao atualizar claim");
+      setEditingUserId(null);
     } catch (err) {
-      console.error("Error updating role:", err);
+      alert("Erro ao salvar papel: " + (err as any)?.message);
     }
+    setSavingRole(false);
   }
 
   return (
@@ -704,12 +709,33 @@ function UsuariosTab() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => toggleRole(u.id, u.role)}
-                      className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm"
-                    >
-                      {u.role === "admin" ? "Remover Admin" : "Tornar Admin"}
-                    </button>
+                    {editingUserId === u.id ? (
+                      <div className="flex gap-2 items-center">
+                        <select
+                          value={editRole}
+                          onChange={e => setEditRole(e.target.value)}
+                          className="border rounded px-2 py-1 text-sm"
+                        >
+                          <option value="cliente">Cliente</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                        <button
+                          className="px-2 py-1 bg-green-600 text-white rounded text-xs"
+                          disabled={savingRole}
+                          onClick={() => saveRole(u.id, editRole)}
+                        >Salvar</button>
+                        <button
+                          className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs"
+                          disabled={savingRole}
+                          onClick={() => setEditingUserId(null)}
+                        >Cancelar</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setEditingUserId(u.id); setEditRole(u.role || "cliente"); }}
+                        className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded text-sm"
+                      >Editar</button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -730,7 +756,7 @@ function VendasTab() {
   useEffect(() => {
     const q = query(collection(db, "compras"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, async (snap) => {
-      const vendasData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const vendasData = snap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
       setVendas(vendasData);
 
       const userIds = [...new Set(vendasData.map((v) => v.userId).filter(Boolean))];
@@ -943,11 +969,11 @@ function ConfiguracoesTab() {
   }
 
   const products = [
-    { emoji: "🍗", nome: "Frango Assado", meta: 100, valor: 5, premio: 250 },
-    { emoji: "🥩", nome: "Carne Assada", meta: 150, valor: 8, premio: 400 },
-    { emoji: "🍱", nome: "Marmita P", meta: 50, valor: 3, premio: 75 },
-    { emoji: "🍱", nome: "Marmita M", meta: 80, valor: 5, premio: 150 },
-    { emoji: "🍱", nome: "Marmita G", meta: 100, valor: 7, premio: 250 },
+    { emoji: "🍗", nome: "Frango Assado", meta: 100, valor: 5 },
+    { emoji: "🥩", nome: "Carne Assada", meta: 150, valor: 8 },
+    { emoji: "🍱", nome: "Marmita P", meta: 50, valor: 3 },
+    { emoji: "🍱", nome: "Marmita M", meta: 80, valor: 5 },
+    { emoji: "🍱", nome: "Marmita G", meta: 100, valor: 7 },
   ];
 
   if (configLoading) {

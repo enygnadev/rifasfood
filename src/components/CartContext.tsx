@@ -7,6 +7,7 @@ type CartItem = {
   quantidade: number;
   valorPorNumero: number;
   numeros?: number[];
+  emoji?: string;
 };
 
 type CartContextValue = {
@@ -15,6 +16,7 @@ type CartContextValue = {
   removeItem: (rifaId: string) => void;
   clearCart: () => void;
   getTotal: () => number;
+  getTotalQuantidade: () => number;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -69,8 +71,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return items.reduce((s, i) => s + (i.valorPorNumero || 0) * (i.quantidade || 1), 0);
   }
 
+  function getTotalQuantidade() {
+    return items.reduce((s, i) => s + (i.quantidade || 1), 0);
+  }
+
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, clearCart, getTotal }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, clearCart, getTotal, getTotalQuantidade }}>
       {children}
     </CartContext.Provider>
   );

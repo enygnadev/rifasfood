@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firestoreAdmin";
 import { logInfo, logWarn, logError } from "@/lib/logger";
 
-export const runtime = "edge"; // keep it fast
-
 export async function POST(req: Request) {
   // Read raw body
   const buf = await req.arrayBuffer();
@@ -34,6 +32,20 @@ export async function POST(req: Request) {
         const { processCheckoutSessionCompleted } = await import("@/lib/webhookProcessor");
         try {
           await processCheckoutSessionCompleted(session);
+          
+          // Após processar pagamento, verificar se alguma rifa atingiu a meta
+          try {
+            const { checkGoalReachedRifas, isAutoRifaEnabled } = await import('@/lib/autoRifaEngine');
+            const enabled = await isAutoRifaEnabled();
+            if (enabled) {
+              const result = await checkGoalReachedRifas();
+              if (result.rifasMovidas > 0) {
+                console.log(`[Webhook] ${result.rifasMovidas} rifas movidas para contagem, ${result.rifasCriadas} novas criadas`);
+              }
+            }
+          } catch (e) {
+            console.warn('[Webhook] Erro ao verificar metas:', e);
+          }
         } catch (e: any) {
           logError('Processor error', e?.message || e);
           throw e;

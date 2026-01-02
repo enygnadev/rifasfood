@@ -755,8 +755,36 @@ function ConfiguracoesTab() {
     enableNotifications: true,
     maintenanceMode: false,
   });
+  const [autoRifaEnabled, setAutoRifaEnabled] = useState(false);
+  const [autoRifaLoading, setAutoRifaLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "config", "autoRifa"), (snap) => {
+      if (snap.exists()) {
+        setAutoRifaEnabled(snap.data().enabled || false);
+      }
+      setAutoRifaLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  async function toggleAutoRifa() {
+    try {
+      const newValue = !autoRifaEnabled;
+      await updateDoc(doc(db, "config", "autoRifa"), { enabled: newValue, updatedAt: serverTimestamp() }).catch(async () => {
+        const { setDoc } = await import("firebase/firestore");
+        await setDoc(doc(db, "config", "autoRifa"), { enabled: newValue, updatedAt: serverTimestamp() });
+      });
+
+      if (newValue) {
+        fetch("/api/auto-rifa/init", { method: "POST" }).catch(console.error);
+      }
+    } catch (err) {
+      console.error("Error toggling auto-rifa:", err);
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -770,6 +798,51 @@ function ConfiguracoesTab() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Configurações do Sistema</h1>
+
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-lg p-6 mb-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <span>🔁</span> Motor de Rifas Automáticas
+            </h3>
+            <p className="text-purple-100 mt-1 text-sm">
+              Sistema autônomo que cria, gerencia e reinicia rifas automaticamente
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {autoRifaLoading ? (
+              <div className="w-16 h-8 bg-white/20 rounded-full animate-pulse" />
+            ) : (
+              <>
+                <span className={`text-sm font-medium ${autoRifaEnabled ? "text-green-200" : "text-gray-300"}`}>
+                  {autoRifaEnabled ? "ATIVO" : "DESATIVADO"}
+                </span>
+                <button
+                  onClick={toggleAutoRifa}
+                  className={`relative w-16 h-8 rounded-full transition-colors ${
+                    autoRifaEnabled ? "bg-green-400" : "bg-white/30"
+                  }`}
+                >
+                  <div
+                    className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                      autoRifaEnabled ? "translate-x-9" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        {autoRifaEnabled && (
+          <div className="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 md:grid-cols-5 gap-3">
+            {["🍗 Frango Assado", "🥩 Carne Assada", "🍱 Marmita P", "🍱 Marmita M", "🍱 Marmita G"].map((p) => (
+              <div key={p} className="bg-white/10 rounded-lg px-3 py-2 text-center text-sm">
+                {p}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm p-6">

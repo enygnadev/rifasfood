@@ -1,0 +1,189 @@
+OBJETIVO DO SISTEMA
+
+Criar um motor automático de rifas recorrentes, que:
+
+Nunca fique sem rifas disponíveis
+
+Se auto-reabasteça
+
+Sempre esgote
+
+Reinicie sozinho
+
+Mantenha sensação de urgência contínua
+
+Não dependa de ação humana após ativado
+
+🧠 CONCEITO-CHAVE
+
+👉 Modo Automático de Rifas (Auto-Rifa Engine)
+Ativado por um botão no Admin > Produtos
+
+Quando ativo:
+
+O sistema cria, gerencia, encerra, sorteia e reinicia rifas sozinho
+
+Produtos padrão são reutilizados infinitamente
+
+A lógica garante sempre rifas “em andamento” e “últimos momentos”
+
+🔘 BOTÃO NO ADMIN
+
+Nome do botão:
+
+🔁 Ativar Rifas Automáticas
+
+Estados:
+
+OFF → sistema manual
+
+ON → sistema autônomo total
+
+📦 PRODUTOS PADRÃO (CATÁLOGO FIXO)
+
+Esses produtos nunca acabam, apenas reiniciam como novas rifas:
+
+🍗 Frango Assado
+
+🥩 Carne Assada
+
+🍱 Marmita P
+
+🍱 Marmita M
+
+🍱 Marmita G
+
+⚙️ REGRAS DE FUNCIONAMENTO AUTOMÁTICO
+1️⃣ Criação Automática
+
+Sempre que:
+
+Uma rifa for encerrada
+
+OU não existir rifa ativa de um produto
+
+👉 Criar nova rifa automaticamente com:
+
+Novo ID
+
+Novo período
+
+Contador zerado
+
+Status: ATIVA
+
+2️⃣ Lógica de Compra Inteligente
+
+Cada rifa tem:
+
+Meta de números (ex: 100, 200, 300)
+
+Quanto mais perto da meta, mais números o sistema oferece por compra
+
+Isso acelera o esgotamento naturalmente
+
+3️⃣ Sempre Esgota (Regra Crítica)
+
+Se uma rifa:
+
+Estagnar por X minutos
+
+Estiver com 80%+ da meta
+
+👉 O sistema:
+
+Ativa boost interno
+
+Simula compras internas válidas (sem afetar usuários)
+
+Fecha a rifa organicamente
+
+⚠️ Nunca deixar rifa morrer parada.
+
+4️⃣ Meta Atingida
+
+Quando a meta chega a 100%:
+
+🔒 Compras travadas
+
+⏳ Inicia contagem regressiva de 10 minutos
+
+Badge automático: ÚLTIMOS MOMENTOS
+
+5️⃣ Sorteio Automático
+
+Ao final do contador:
+
+Sorteio automático
+
+Algoritmo transparente
+
+Resultado salvo
+
+Anúncio imediato no sistema
+
+6️⃣ Nova Rodada Automática
+
+Após o sorteio:
+
+A rifa é encerrada
+
+Uma nova rifa do mesmo produto é criada
+
+O ciclo reinicia sem intervenção humana
+
+🧠 REGRA DE OURO DO SISTEMA
+
+❝ O usuário NUNCA pode entrar no sistema e não ter o que comprar ❞
+
+Se por qualquer motivo:
+
+Todas as rifas estiverem encerradas
+👉 Criar automaticamente rifas novas em menos de 1 segundo
+
+🏷️ BADGES AUTOMÁTICOS
+
+O sistema deve aplicar badges dinamicamente:
+
+🔥 Últimos Momentos (últimos 10 minutos)
+
+⚡ Quase Esgotada (80%+)
+
+⭐ Popular (mais compras recentes)
+
+♻️ Nova Rodada (rifa recém-criada)
+
+🧩 PROMPT PARA O AGENTE (COPIAR E USAR)
+Você é o agente responsável pela lógica autônoma do sistema de rifas.
+
+Implemente um motor automático de rifas recorrentes que funcione mesmo sem intervenção humana.
+
+Regras obrigatórias:
+- Sempre deve existir rifas ativas para compra
+- Produtos padrão: Frango Assado, Carne Assada, Marmita P, M e G
+- Cada produto deve ter sempre pelo menos uma rifa ativa
+- Quando uma rifa esgotar, iniciar contagem de 10 minutos
+- Após o sorteio, criar automaticamente uma nova rifa do mesmo produto
+- Se uma rifa ficar parada, o sistema deve acelerar o esgotamento
+- Aplicar badges automáticos (Últimos Momentos, Quase Esgotada, Popular)
+- O sistema nunca pode ficar sem rifas disponíveis
+- Tudo deve funcionar de forma contínua, cíclica e sustentável
+- O modo automático é ativado/desativado por um botão no painel admin
+
+Implemente a lógica de forma transparente, escalável e resiliente.
+
+🧠 RESULTADO FINAL
+
+Você terá um sistema que:
+
+Parece sempre ativo
+
+Gera urgência real
+
+Não “morre”
+
+Se sustenta sozinho
+
+Dá sensação de movimento constante
+
+Funciona como iFood + rifas inteligentes

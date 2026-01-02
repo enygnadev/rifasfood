@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 
 type CartItem = {
   rifaId: string;
@@ -29,6 +29,7 @@ export function useCart() {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const lastAddTimeRef = useRef<{ [key: string]: number }>({});
 
   useEffect(() => {
     try {
@@ -48,13 +49,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   function addItem(item: CartItem) {
+    const now = Date.now();
+    const lastTime = lastAddTimeRef.current[item.rifaId] || 0;
+    
+    // Previne adicionar o mesmo item em menos de 500ms
+    if (now - lastTime < 500) {
+      console.log(`[DEBUG CartContext] Rejeitado - último clique foi há ${now - lastTime}ms`);
+      return;
+    }
+    
+    lastAddTimeRef.current[item.rifaId] = now;
+    console.log(`[DEBUG CartContext] addItem called with quantidade=${item.quantidade}`, item);
+    
     setItems((prev) => {
       const idx = prev.findIndex((p) => p.rifaId === item.rifaId);
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx].quantidade += item.quantidade;
+        console.log(`[DEBUG CartContext] Item exists, updated quantidade from ${copy[idx].quantidade - item.quantidade} to ${copy[idx].quantidade}`);
         return copy;
       }
+      console.log(`[DEBUG CartContext] New item added with quantidade=${item.quantidade}`);
       return [...prev, item];
     });
   }

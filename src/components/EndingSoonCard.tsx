@@ -88,6 +88,7 @@ export function EndingSoonCard({ rifa }: { rifa: any }) {
     }
     
     setIsAddingToCart(true);
+    console.log(`[DEBUG] Adicionando 1x ${rifa.nome} - antes tinha ${noCarrinho}, vai ter ${noCarrinho + 1}`);
     cart.addItem({ 
       rifaId: rifa.id, 
       nome: rifa.nome + (valorDobrado ? ' (DOBRADO)' : ''), 

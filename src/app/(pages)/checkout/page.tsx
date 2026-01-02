@@ -14,6 +14,10 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("credit-card"); // credit-card, pix
+  const [pixPayerName, setPixPayerName] = useState("");
+  const [pixValidationError, setPixValidationError] = useState("");
+  const [pixCopied, setPixCopied] = useState(false);
   const [rifasData, setRifasData] = useState<any[]>([]);
 
   useEffect(() => {
@@ -49,10 +53,91 @@ export default function CheckoutPage() {
   const total = cart.getTotal();
   const quantidadeTotal = cart.getTotalQuantidade();
 
+  const PIX_CODE = "00020126330014br.gov.bcb.pix0111100498419715204000053039865802BR5925Gustavo De Aguiar Martins6009Sao Paulo62290525REC6957E45AB6C1437405864563042F8A";
+
+  function copyPixCode() {
+    const pixMessage = PIX_CODE;
+    
+    // Usar método compatível com todos os navegadores
+    const textarea = document.createElement('textarea');
+    textarea.value = pixMessage;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    
+    try {
+      document.execCommand('copy');
+      setPixCopied(true);
+      setTimeout(() => setPixCopied(false), 2000);
+    } catch (err) {
+      console.error('Erro ao copiar:', err);
+      alert('Não foi possível copiar. Tente novamente.');
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+
+  // Validação inteligente de PIX
+  function validatePixPayer() {
+    setPixValidationError("");
+    
+    if (!pixPayerName.trim()) {
+      setPixValidationError("Digite o nome do pagador PIX");
+      return false;
+    }
+
+    // Extrair primeiro nome do comprador
+    const buyerFirstName = (user?.displayName || email || "")
+      .split(" ")[0]
+      .toLowerCase()
+      .trim();
+
+    // Extrair primeiro nome do pagador
+    const payerFirstName = pixPayerName
+      .split(" ")[0]
+      .toLowerCase()
+      .trim();
+
+    // Validação 1: Se nomes são iguais (mesma pessoa pagando)
+    if (buyerFirstName === payerFirstName) {
+      return true;
+    }
+
+    // Validação 2: Se names compartilham sobrenome comum (família)
+    const buyerParts = (user?.displayName || email || "").toLowerCase().split(" ");
+    const payerParts = pixPayerName.toLowerCase().split(" ");
+
+    // Verificar se compartilham pelo menos 2 palavras (indica mesmo sobrenome)
+    const commonWords = buyerParts.filter(word => 
+      word.length > 3 && payerParts.includes(word)
+    );
+
+    if (commonWords.length >= 1) {
+      return true;
+    }
+
+    // Se não passou na validação, pede confirmação
+    const confirmed = confirm(
+      `⚠️ O nome do pagador PIX (${pixPayerName}) é diferente do seu (${user?.displayName || email}).\n\n` +
+      `Tem certeza que está recebendo PIX de ${pixPayerName}?\n\n` +
+      `Clique OK para continuar ou CANCELAR para ajustar.`
+    );
+
+    return confirmed;
+  }
+
   async function handleCheckout() {
     if (!email || !phone) {
       alert("Preencha email e telefone");
       return;
+    }
+
+    // Validação PIX
+    if (paymentMethod === "pix") {
+      if (!validatePixPayer()) {
+        return;
+      }
     }
 
     setLoading(true);
@@ -72,6 +157,8 @@ export default function CheckoutPage() {
           userId,
           email,
           phone,
+          paymentMethod,
+          pixPayerName: paymentMethod === "pix" ? pixPayerName : undefined,
         }),
       });
 
@@ -238,6 +325,119 @@ export default function CheckoutPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
                 />
               </div>
+
+              {/* Método de Pagamento */}
+              <div>
+                <label className="block text-sm font-semibold mb-3">💳 Método de Pagamento</label>
+                <div className="space-y-2">
+                  <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 transition" style={{backgroundColor: paymentMethod === 'credit-card' ? '#f0f9ff' : 'transparent', borderColor: paymentMethod === 'credit-card' ? '#0ea5e9' : '#d1d5db'}}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="credit-card"
+                      checked={paymentMethod === "credit-card"}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-4 h-4 accent-blue-500"
+                    />
+                    <span className="ml-3 font-semibold text-gray-900">Cartão de Crédito</span>
+                  </label>
+                  
+                  <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-orange-50 transition" style={{backgroundColor: paymentMethod === 'pix' ? '#fff7ed' : 'transparent', borderColor: paymentMethod === 'pix' ? '#fb923c' : '#d1d5db'}}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="pix"
+                      checked={paymentMethod === "pix"}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="w-4 h-4 accent-orange-500"
+                    />
+                    <span className="ml-3 font-semibold text-gray-900">PIX</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Campo PIX - Validação Inteligente */}
+              {paymentMethod === "pix" && (
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold mb-2 text-orange-900">
+                      👤 Nome do Pagador PIX
+                    </label>
+                    <input
+                      type="text"
+                      value={pixPayerName}
+                      onChange={(e) => {
+                        setPixPayerName(e.target.value);
+                        setPixValidationError("");
+                      }}
+                      placeholder="Digite o nome de quem está enviando o PIX"
+                      className="w-full px-4 py-2 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                    />
+                    <p className="text-xs text-gray-600 mt-2">
+                      💡 Digite o nome da pessoa que está fazendo o PIX. Será validado automaticamente.
+                    </p>
+                  </div>
+
+                  {pixValidationError && (
+                    <div className="p-3 bg-red-100 border border-red-300 text-red-800 rounded-lg text-sm">
+                      ❌ {pixValidationError}
+                    </div>
+                  )}
+
+                  {pixPayerName && !pixValidationError && (
+                    <div className="p-3 bg-green-100 border border-green-300 text-green-800 rounded-lg text-sm">
+                      ✓ Nome validado: {pixPayerName}
+                    </div>
+                  )}
+
+                  {/* QR Code e PIX */}
+                  <div className="mt-4 p-4 bg-white border border-orange-200 rounded-lg">
+                    <p className="font-semibold text-gray-900 mb-3">📱 Código PIX para Pagamento</p>
+                    
+                    <div className="flex gap-4 items-start">
+                      {/* QR Code */}
+                      <div className="flex-shrink-0">
+                        <img
+                          src="/qrcode.jpeg"
+                          alt="QR Code PIX"
+                          className="w-32 h-32 border-2 border-orange-300 rounded-lg bg-white object-cover"
+                        />
+                        <p className="text-xs text-center text-gray-600 mt-2">QR Code PIX</p>
+                      </div>
+
+                      {/* Código PIX */}
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-600 mb-2">Copie o código PIX:</p>
+                        <button
+                          onClick={copyPixCode}
+                          className={`w-full px-4 py-3 rounded-lg font-semibold transition-all text-sm flex items-center justify-center gap-2 ${
+                            pixCopied
+                              ? 'bg-green-500 text-white'
+                              : 'bg-orange-500 text-white hover:bg-orange-600'
+                          }`}
+                        >
+                          {pixCopied ? (
+                            <>✓ Copiado com sucesso!</>
+                          ) : (
+                            <>📋 Copiar Código PIX</>
+                          )}
+                        </button>
+                        <p className="text-xs text-gray-600 mt-3">Clique no botão acima para copiar o código PIX. Você pode usar o QR code ao lado ou colar o código em seu banco.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 p-3 bg-white border border-orange-200 rounded-lg text-xs text-gray-700">
+                    <p className="font-semibold mb-2">🔒 Como funciona:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Escaneie o QR code ou copie o código PIX</li>
+                      <li>Abra seu app de banco e faça o PIX para o valor de R$ {total.toFixed(2)}</li>
+                      <li>Use o nome: {pixPayerName || 'seu nome'}</li>
+                      <li>Após confirmar o pagamento, seu pedido será liberado</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -273,10 +473,10 @@ export default function CheckoutPage() {
 
             <button
               onClick={handleCheckout}
-              disabled={loading || !email || !phone}
+              disabled={loading || !email || !phone || (paymentMethod === "pix" && !pixPayerName)}
               className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 active:bg-green-800 disabled:bg-gray-400 transition text-lg"
             >
-              {loading ? "Processando..." : "Confirmar Pedido"}
+              {loading ? "Processando..." : paymentMethod === "pix" ? "Gerar Código PIX" : "Confirmar Pedido"}
             </button>
 
             <button

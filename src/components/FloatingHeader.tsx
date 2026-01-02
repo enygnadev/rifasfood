@@ -299,12 +299,18 @@ export function FloatingHeader() {
                     if (isLoadingCheckout) return; // Previne múltiplos cliques
                     setIsLoadingCheckout(true);
                     setOpen(false); // Fecha a janela flutuante
+                    
                     // Se não está logado, vai para login (com redirect para checkout)
                     if (!isLoggedIn) {
                       router.push('/login?redirect=/checkout');
                     } else {
                       router.push('/checkout');
                     }
+                    
+                    // Reseta o estado após 3 segundos (fallback)
+                    setTimeout(() => {
+                      setIsLoadingCheckout(false);
+                    }, 3000);
                   }}
                   disabled={isLoadingCheckout || cart.items.length === 0}
                 >

@@ -8,7 +8,7 @@ import { logInfo, logWarn } from "@/lib/logger";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { rifaId, userId, items, email, phone, paymentMethod: clientPaymentMethod } = body;
+    const { rifaId, userId, items, email, phone, paymentMethod: clientPaymentMethod, pixPayerName } = body;
 
     // Support both single-item and multi-item requests
     let itemsToProcess: any[] = [];
@@ -104,6 +104,7 @@ export async function POST(req: Request) {
         paymentMethod,
         email: email || '',
         phone: phone || '',
+        pixPayerName: pixPayerName || '', // Nome de quem fez o PIX
         createdAt: new Date().toISOString(),
       };
 

@@ -9,7 +9,7 @@ import Link from "next/link";
 export default function CadastroPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/painel";
+  const redirectTo = searchParams?.get("redirect") || "/painel";
   
   const [formData, setFormData] = useState({
     nome: "",

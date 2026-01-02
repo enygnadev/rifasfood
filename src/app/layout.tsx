@@ -7,6 +7,14 @@ import SentryInit from '@/components/SentryInit';
 export const metadata = {
   title: "RifaFood",
   description: "Plataforma de rifas alimentícias estilo iFood",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/rifafoods.ico", type: "image/x-icon" },
+    ],
+    apple: "/rifafoods.ico",
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
